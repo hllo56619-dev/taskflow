@@ -31,12 +31,14 @@ jobs:
           gradle-version: '8.13'
           cache-provider: basic
 
-      - name: Install Android build tools in the cloud
+      - name: Set up Android SDK tools
         uses: android-actions/setup-android@v4
-        with:
-          packages: |
-            platforms;android-36
-            build-tools;36.0.0
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install "platforms;android-36"
+          sdkmanager --install "build-tools;36.0.0"
 
       - name: Build debug APK
         working-directory: android
