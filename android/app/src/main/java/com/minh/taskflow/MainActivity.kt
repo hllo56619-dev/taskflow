@@ -366,7 +366,7 @@ class MainActivity : Activity() {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val filtered = allTasks.filter { task ->
             when (currentFilter) {
-                FILTER_TODAY -> !task.completed && (task.scheduledDate == today || task.dueDate == today || (task.scheduledDate == null && task.dueDate == null))
+                FILTER_TODAY -> !task.completed && (task.isDaily || task.scheduledDate == today || task.dueDate == today || (task.scheduledDate == null && task.dueDate == null))
                 FILTER_DAILY -> task.isDaily
                 FILTER_TODO -> !task.completed
                 FILTER_DONE -> task.completed
