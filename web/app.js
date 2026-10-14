@@ -530,8 +530,24 @@
       return;
     }
     client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      auth: {
+        storage: window.localStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
     });
+
+    // Khôi phục giao diện khi Supabase nạp phiên đã lưu hoặc làm mới token.
+    client.auth.onAuthStateChange((event, session) => {
+      if (event !== 'SIGNED_IN' && event !== 'TOKEN_REFRESHED' && event !== 'USER_UPDATED') return;
+      const user = session?.user;
+      if (!user || user.id === currentUser?.id) return;
+      queueMicrotask(() => {
+        if (client && currentUser?.id !== user.id) void enterApp(user);
+      });
+    });
+
     const { data, error } = await client.auth.getSession();
     if (error) console.warn('Không đọc được phiên đăng nhập:', error.message);
     if (data?.session?.user) await enterApp(data.session.user);
