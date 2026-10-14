@@ -392,14 +392,39 @@
       });
   }
 
+  let enteringUserId = null;
+  let enteringPromise = null;
+
   async function enterApp(user) {
-    currentUser = user;
-    $('#authScreen').classList.add('hidden');
-    $('#appShell').classList.remove('hidden');
-    $('#accountEmail').textContent = user.email || 'Tài khoản';
-    $('#avatarInitial').textContent = (user.email || 'T').slice(0, 1).toLocaleUpperCase('vi');
-    await loadAll();
-    subscribeRealtime();
+    if (!user?.id) throw new Error('Không xác định được tài khoản sau khi đăng nhập.');
+
+    // Tránh hai luồng cùng mở ứng dụng (ví dụ submit form và sự kiện auth chạy sát nhau).
+    if (currentUser?.id === user.id && !$('#appShell').classList.contains('hidden')) {
+      return;
+    }
+    if (enteringUserId === user.id && enteringPromise) {
+      return enteringPromise;
+    }
+
+    enteringUserId = user.id;
+    enteringPromise = (async () => {
+      currentUser = user;
+      $('#authScreen').classList.add('hidden');
+      $('#appShell').classList.remove('hidden');
+      $('#accountEmail').textContent = user.email || 'Tài khoản';
+      $('#avatarInitial').textContent = (user.email || 'T').slice(0, 1).toLocaleUpperCase('vi');
+      await loadAll();
+      if (currentUser?.id === user.id) subscribeRealtime();
+    })();
+
+    try {
+      await enteringPromise;
+    } finally {
+      if (enteringUserId === user.id) {
+        enteringUserId = null;
+        enteringPromise = null;
+      }
+    }
   }
 
   async function leaveApp() {
@@ -655,16 +680,8 @@
       }
     });
 
-    // Khôi phục giao diện khi Supabase nạp phiên đã lưu hoặc làm mới token.
-    client.auth.onAuthStateChange((event, session) => {
-      if (event !== 'SIGNED_IN' && event !== 'TOKEN_REFRESHED' && event !== 'USER_UPDATED') return;
-      const user = session?.user;
-      if (!user || user.id === currentUser?.id) return;
-      queueMicrotask(() => {
-        if (client && currentUser?.id !== user.id) void enterApp(user);
-      });
-    });
-
+    // Khôi phục phiên một lần khi mở trang. Sau đăng nhập, form sẽ mở ứng dụng
+    // trực tiếp; không để sự kiện auth đồng thời mở/đóng giao diện lần thứ hai.
     const { data, error } = await client.auth.getSession();
     if (error) console.warn('Không đọc được phiên đăng nhập:', error.message);
     if (data?.session?.user) await enterApp(data.session.user);
