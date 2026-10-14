@@ -143,6 +143,20 @@ class MainActivity : Activity() {
             setPadding(dp(22), dp(26), dp(22), dp(26))
             setBackgroundColor(canvas)
         }
+        val authThemeToggle = button(if (isDarkTheme) "☀  Sáng" else "☾  Tối", false).apply {
+            textSize = 12f
+            minimumHeight = dp(40)
+            setOnClickListener {
+                uiPrefs.edit().putBoolean("dark_theme", !isDarkTheme).apply()
+                recreate()
+            }
+        }
+        val authThemeParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)).apply {
+            gravity = Gravity.END
+            bottomMargin = dp(12)
+        }
+        root.addView(authThemeToggle, authThemeParams)
+
         val card = baseColumn(22).apply {
             background = rounded(surface, 22, line)
             elevation = dp(2).toFloat()
