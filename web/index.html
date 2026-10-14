@@ -88,7 +88,7 @@
       <label>Ghi chú <textarea id="taskNotes" rows="3" placeholder="Chi tiết hoặc các bước cần nhớ…"></textarea></label>
       <div class="form-grid"><label>Danh mục<select id="taskCategory"><option value="">Chưa phân loại</option></select></label><label>Độ ưu tiên<select id="taskPriority"><option value="normal">Bình thường</option><option value="high">Cao</option><option value="low">Thấp</option></select></label></div>
       <div class="form-grid"><label>Ngày dự định làm<input id="taskScheduledDate" type="date"></label><label>Hạn cuối<input id="taskDueDate" type="date"></label></div>
-      <label class="daily-option"><input id="taskIsDaily" type="checkbox"><span><strong>Lặp lại hằng ngày</strong><small>Tự bỏ đánh dấu hoàn thành khi sang ngày mới.</small></span></label><p class="muted tiny">Ngày dự định làm và hạn cuối là hai thông tin riêng biệt.</p>
+      <label class="daily-option"><input id="taskIsDaily" type="checkbox"><span><strong>Lặp lại hằng ngày</strong><small id="dailyOptionHint">Tự bỏ đánh dấu hoàn thành khi sang ngày mới.</small></span></label><p class="muted tiny">Ngày dự định làm và hạn cuối là hai thông tin riêng biệt.</p>
       <div class="modal-actions"><button type="button" class="button secondary" data-close="taskDialog">Hủy</button><button id="saveTaskBtn" class="button primary" type="submit">Lưu công việc</button></div>
     </form>
   </dialog>
