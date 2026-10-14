@@ -72,6 +72,8 @@
     dailySchemaAvailable = available;
     const checkbox = $('#taskIsDaily');
     const hint = $('#dailyOptionHint');
+    const schemaNotice = $('#schemaNotice');
+    if (schemaNotice) schemaNotice.classList.toggle('hidden', available);
     if (checkbox) {
       checkbox.disabled = !available;
       if (!available) checkbox.checked = false;
