@@ -35,6 +35,8 @@ Nếu Terminal báo `git: command not found`, hãy dừng lại và nhắn mình
 4. Mở file `supabase/schema.sql` trong bộ mã nguồn này bằng TextEdit (nếu dùng TextEdit, chọn **Format → Make Plain Text**). Sao chép toàn bộ nội dung.
 5. Trong trang Supabase, mở **SQL Editor → New query**, dán toàn bộ SQL vào và bấm **Run**.
 6. Mở phần cài đặt API của project, thường nằm ở **Project Settings → API Keys** hoặc mục **API**. Lấy hai thông tin:
+
+**Nếu bạn đã có TaskFlow từ trước:** khi dùng tính năng *Công việc hằng ngày*, hãy mở `supabase/daily_tasks_migration.sql`, sao chép toàn bộ câu lệnh vào **Supabase → SQL Editor → New query**, rồi bấm **Run** một lần. Lệnh này bổ sung cột còn thiếu mà không xóa công việc hiện có.
    - **Project URL** — địa chỉ project, dạng `https://ten-project.supabase.co`;
    - **Publishable key** — bắt đầu bằng `sb_publishable_...`. Legacy `anon` key cũng được hỗ trợ.
 
@@ -150,6 +152,7 @@ APK này là **debug build để thử nghiệm cá nhân**, không phải bản
 - **Web báo chưa cấu hình:** kiểm tra `web/config.js`, đảm bảo không còn placeholder `YOUR-PROJECT-ID` hoặc `YOUR_SUPABASE...`, rồi commit/push lại.
 - **Android báo chưa cấu hình:** kiểm tra `AppConfig.kt`, push thay đổi lên GitHub và tải APK mới sau khi workflow build xong.
 - **Lỗi API key hoặc 401:** kiểm tra URL và key có cùng thuộc một Supabase project hay không. Không dùng `service_role` key.
+- **Lỗi `column tasks.is_daily does not exist`:** mở `supabase/daily_tasks_migration.sql`, dán vào **Supabase → SQL Editor → New query**, bấm **Run**, sau đó tải lại website bằng `⌘ + Shift + R`. Không cần xóa hay tạo lại bảng `tasks`.
 - **Lỗi permission/table not found:** chạy toàn bộ `supabase/schema.sql` trong SQL Editor và kiểm tra câu lệnh chạy thành công.
 - **Tạo tài khoản được nhưng không đăng nhập được:** kiểm tra hộp thư xác nhận email và cài đặt Email provider trong Supabase.
 - **Tích trên Android nhưng Mac chưa đổi ngay:** bấm nút làm mới trên web; nếu cần, kiểm tra cấu hình Realtime trong Supabase. Trên Android, bấm nút làm mới hoặc đợi tối đa khoảng 30 giây khi app đang mở.
