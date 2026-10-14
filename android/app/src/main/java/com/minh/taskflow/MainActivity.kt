@@ -26,12 +26,15 @@ import java.util.Locale
 import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
-    private val blue = Color.rgb(53, 99, 233)
-    private val ink = Color.rgb(23, 32, 51)
-    private val muted = Color.rgb(123, 132, 151)
-    private val canvas = Color.rgb(246, 247, 251)
-    private val line = Color.rgb(232, 236, 244)
-    private val green = Color.rgb(21, 150, 106)
+    private val uiPrefs by lazy { getSharedPreferences("taskflow_ui", MODE_PRIVATE) }
+    private val isDarkTheme: Boolean get() = uiPrefs.getBoolean("dark_theme", false)
+    private val blue: Int get() = if (isDarkTheme) Color.rgb(132, 149, 255) else Color.rgb(53, 99, 233)
+    private val ink: Int get() = if (isDarkTheme) Color.rgb(237, 240, 250) else Color.rgb(23, 32, 51)
+    private val muted: Int get() = if (isDarkTheme) Color.rgb(164, 174, 195) else Color.rgb(123, 132, 151)
+    private val canvas: Int get() = if (isDarkTheme) Color.rgb(17, 21, 34) else Color.rgb(246, 247, 251)
+    private val surface: Int get() = if (isDarkTheme) Color.rgb(28, 34, 51) else Color.WHITE
+    private val line: Int get() = if (isDarkTheme) Color.rgb(52, 61, 83) else Color.rgb(232, 236, 244)
+    private val green: Int get() = if (isDarkTheme) Color.rgb(70, 214, 163) else Color.rgb(21, 150, 106)
 
     private lateinit var repository: TaskRepository
     private val io = Executors.newSingleThreadExecutor()
@@ -59,8 +62,8 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = canvas
-        window.navigationBarColor = Color.WHITE
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        window.navigationBarColor = surface
+        window.decorView.systemUiVisibility = if (isDarkTheme) 0 else View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         repository = TaskRepository(this)
 
@@ -121,7 +124,7 @@ class MainActivity : Activity() {
         isAllCaps = false
         setTypeface(typeface, Typeface.BOLD)
         setTextColor(if (primary) Color.WHITE else ink)
-        background = rounded(if (primary) blue else Color.WHITE, 12, if (primary) null else line)
+        background = rounded(if (primary) blue else surface, 12, if (primary) null else line)
         minimumHeight = dp(46)
         setPadding(dp(15), dp(8), dp(15), dp(8))
         stateListAnimator = null
@@ -141,7 +144,7 @@ class MainActivity : Activity() {
             setBackgroundColor(canvas)
         }
         val card = baseColumn(22).apply {
-            background = rounded(Color.WHITE, 22, line)
+            background = rounded(surface, 22, line)
             elevation = dp(2).toFloat()
         }
         val brand = label("✓  TaskFlow", 27f, blue, true).apply { gravity = Gravity.CENTER }
@@ -174,7 +177,7 @@ class MainActivity : Activity() {
             setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
             setPadding(dp(12), dp(11), dp(12), dp(11))
-            background = rounded(Color.WHITE, 10, line)
+            background = rounded(surface, 10, line)
         }
         card.addView(authEmailInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)))
         card.addView(space(13))
@@ -263,15 +266,27 @@ class MainActivity : Activity() {
         titleColumn.addView(space(4))
         titleColumn.addView(label(todayLabel(), 12f, muted), matchWrap())
         header.addView(titleColumn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val themeToggle = button(if (isDarkTheme) "☀" else "☾", false).apply {
+            textSize = 19f
+            minimumWidth = dp(42)
+            contentDescription = if (isDarkTheme) "Chuyển sang chế độ sáng" else "Chuyển sang chế độ tối"
+            setOnClickListener {
+                uiPrefs.edit().putBoolean("dark_theme", !isDarkTheme).apply()
+                recreate()
+            }
+        }
+        val themeParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(44))
+        themeParams.marginEnd = dp(5)
+        header.addView(themeToggle, themeParams)
         val refresh = button("↻", false).apply {
             textSize = 22f
             minimumWidth = dp(44)
             setOnClickListener { loadTasks(showSpinner = true, showErrors = true) }
         }
         header.addView(refresh)
-        val logout = button("Thoát", false).apply {
+        val logout = button("Đăng xuất", false).apply {
             textSize = 12f
-            minimumWidth = dp(58)
+            minimumWidth = dp(80)
             setOnClickListener { logout() }
         }
         val logoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(44))
@@ -282,7 +297,7 @@ class MainActivity : Activity() {
         val summaryCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(13), dp(16), dp(13))
-            background = rounded(Color.WHITE, 14, line)
+            background = rounded(surface, 14, line)
         }
         countLabel = label("Đang tải danh sách…", 14f, ink, true)
         summaryCard.addView(countLabel, matchWrap())
@@ -332,7 +347,7 @@ class MainActivity : Activity() {
         tabButtons.forEachIndexed { index, tab ->
             val selected = index == currentFilter
             tab.setTextColor(if (selected) Color.WHITE else ink)
-            tab.background = rounded(if (selected) blue else Color.WHITE, 11, if (selected) null else line)
+            tab.background = rounded(if (selected) blue else surface, 11, if (selected) null else line)
         }
     }
 
@@ -387,7 +402,7 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 setPadding(dp(20), dp(52), dp(20), dp(54))
-                background = rounded(Color.WHITE, 15, line)
+                background = rounded(surface, 15, line)
             }
             val icon = label(if (currentFilter == FILTER_DONE) "✓" else "☀", 29f, green, true).apply { gravity = Gravity.CENTER }
             empty.addView(icon, matchWrap())
@@ -407,7 +422,7 @@ class MainActivity : Activity() {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(8), dp(8), dp(10), dp(8))
-                background = rounded(Color.WHITE, 13, line)
+                background = rounded(surface, 13, line)
                 minimumHeight = dp(76)
             }
             val checkbox = CheckBox(this).apply {
