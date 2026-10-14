@@ -6,6 +6,6 @@ package com.minh.taskflow
  * NEVER put a service_role / secret key here.
  */
 object AppConfig {
-    const val SUPABASE_URL = "https://YOUR-PROJECT-ID.supabase.co"
-    const val SUPABASE_ANON_KEY = "YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY"
+    const val SUPABASE_URL = "https://udhtzlsqbpjklxoyvwgl.supabase.co"
+    const val SUPABASE_ANON_KEY = "sb_publishable_y-N5n7lL1c809Bbo4yzbjA_7gKk3cMd"
 }
