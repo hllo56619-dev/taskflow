@@ -171,7 +171,7 @@ class MainActivity : Activity() {
         authEmailInput = EditText(this).apply {
             hint = "ban@email.com"
             textSize = 14f
-            singleLine = true
+            setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
             setPadding(dp(12), dp(11), dp(12), dp(11))
             background = rounded(Color.WHITE, 10, line)
@@ -182,7 +182,7 @@ class MainActivity : Activity() {
         authPasswordInput = EditText(this).apply {
             hint = "Ít nhất 6 ký tự"
             textSize = 14f
-            singleLine = true
+            setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             setPadding(dp(12), dp(11), dp(12), dp(11))
             background = rounded(Color.WHITE, 10, line)
@@ -321,7 +321,7 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(1), dp(16), dp(20))
         }
         taskContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        scroll.addView(taskContainer, ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        scroll.addView(taskContainer, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         setContentView(root)
