@@ -25,6 +25,7 @@
   };
   const viewDescriptions = {
     today: 'Bắt đầu từ việc quan trọng nhất.',
+    daily: 'Những thói quen và việc cần duy trì mỗi ngày.',
     upcoming: 'Những công việc đang chờ ở phía trước.',
     overdue: 'Những việc đã vượt quá hạn cuối.',
     all: 'Mọi công việc chưa lưu trữ của bạn.',
@@ -95,7 +96,7 @@
 
   function taskMatchesView(task) {
     const today = todayString();
-        if (currentView.startsWith('category:')) return task.category_id === currentCategoryId && !task.is_completed;
+    if (currentView.startsWith('category:')) return task.category_id === currentCategoryId && !task.is_completed;
     switch (currentView) {
       case 'today': return !task.is_completed && (task.scheduled_date === today || task.due_date === today || (!task.scheduled_date && !task.due_date));
       case 'daily': return Boolean(task.is_daily);
