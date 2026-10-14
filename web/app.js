@@ -628,7 +628,6 @@
     });
     const addTask = () => openTaskDialog();
     $('#newTaskBtn').addEventListener('click', addTask);
-    $('#headingNewTaskBtn').addEventListener('click', addTask);
     $('#emptyCreateBtn').addEventListener('click', addTask);
     $('#taskForm').addEventListener('submit', saveTask);
     $('#categoryForm').addEventListener('submit', createCategory);
