@@ -23,6 +23,8 @@ create table if not exists public.tasks (
   due_date date,
   priority text not null default 'normal' check (priority in ('low', 'normal', 'high')),
   is_completed boolean not null default false,
+  is_daily boolean not null default false,
+  daily_completed_on date,
   completed_at timestamptz,
   position double precision not null default 0,
   archived_at timestamptz,
