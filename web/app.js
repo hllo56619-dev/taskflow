@@ -20,12 +20,11 @@
   let loadInProgress = false;
 
   const viewNames = {
-    today: 'Hôm nay', tomorrow: 'Ngày mai', upcoming: 'Sắp tới',
+    today: 'Hôm nay', daily: 'Công việc hằng ngày', upcoming: 'Sắp tới',
     overdue: 'Quá hạn', all: 'Tất cả công việc', completed: 'Đã hoàn thành', stats: 'Thống kê'
   };
   const viewDescriptions = {
     today: 'Bắt đầu từ việc quan trọng nhất.',
-    tomorrow: 'Chuẩn bị trước để ngày mai nhẹ nhàng hơn.',
     upcoming: 'Những công việc đang chờ ở phía trước.',
     overdue: 'Những việc đã vượt quá hạn cuối.',
     all: 'Mọi công việc chưa lưu trữ của bạn.',
@@ -96,11 +95,10 @@
 
   function taskMatchesView(task) {
     const today = todayString();
-    const tomorrow = addDays(today, 1);
-    if (currentView.startsWith('category:')) return task.category_id === currentCategoryId && !task.is_completed;
+        if (currentView.startsWith('category:')) return task.category_id === currentCategoryId && !task.is_completed;
     switch (currentView) {
       case 'today': return !task.is_completed && (task.scheduled_date === today || task.due_date === today || (!task.scheduled_date && !task.due_date));
-      case 'tomorrow': return !task.is_completed && (task.scheduled_date === tomorrow || (!task.scheduled_date && task.due_date === tomorrow));
+      case 'daily': return Boolean(task.is_daily);
       case 'upcoming': return !task.is_completed && ((task.scheduled_date && task.scheduled_date > today) || (!task.scheduled_date && task.due_date && task.due_date > today));
       case 'overdue': return !task.is_completed && Boolean(task.due_date && task.due_date < today);
       case 'completed': return task.is_completed;
@@ -145,6 +143,8 @@
     $('#rateStat').textContent = `${rate}%`;
     $('#rateBar').style.width = `${rate}%`;
     $('#todayCount').textContent = tasks.filter((task) => !task.is_completed && !task.archived_at && (task.scheduled_date === todayString() || task.due_date === todayString() || (!task.scheduled_date && !task.due_date))).length;
+    const dailyCount = $('#dailyCount');
+    if (dailyCount) dailyCount.textContent = tasks.filter((task) => task.is_daily && !task.is_completed && !task.archived_at).length;
     $('#overdueCount').textContent = visible.filter(isOverdue).length;
     $('#completedNote').textContent = completed ? 'Đang có tiến triển tốt' : 'Mỗi việc nhỏ đều đáng kể';
   }
@@ -272,12 +272,12 @@
     try {
       const [categoryResult, taskResult] = await Promise.all([
         client.from('categories').select('*').eq('user_id', currentUser.id).order('position').order('name'),
-        client.from('tasks').select('id,user_id,title,notes,category_id,scheduled_date,due_date,priority,is_completed,completed_at,position,archived_at,created_at,updated_at').eq('user_id', currentUser.id).is('archived_at', null).order('position', { ascending: true }).order('created_at', { ascending: false })
+        client.from('tasks').select('id,user_id,title,notes,category_id,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,position,archived_at,created_at,updated_at').eq('user_id', currentUser.id).is('archived_at', null).order('position', { ascending: true }).order('created_at', { ascending: false })
       ]);
       if (categoryResult.error) throw categoryResult.error;
       if (taskResult.error) throw taskResult.error;
       categories = categoryResult.data || [];
-      tasks = taskResult.data || [];
+      tasks = (taskResult.data || []).map((task) => ({ ...task, is_completed: task.is_daily ? task.daily_completed_on === todayString() : task.is_completed }));
       if (!categories.length) await ensureDefaultCategories();
       setSyncState('online', 'Đã đồng bộ');
       render();
@@ -340,7 +340,8 @@
     $('#taskNotes').value = task?.notes || '';
     $('#taskCategory').value = task?.category_id || '';
     $('#taskPriority').value = task?.priority || 'normal';
-    $('#taskScheduledDate').value = task?.scheduled_date || (currentView === 'today' ? todayString() : currentView === 'tomorrow' ? addDays(todayString(), 1) : '');
+    $('#taskScheduledDate').value = task?.scheduled_date || (currentView === 'today' ? todayString() : '');
+    $('#taskIsDaily').checked = Boolean(task?.is_daily);
     $('#taskDueDate').value = task?.due_date || '';
     $('#saveTaskBtn').textContent = task ? 'Lưu thay đổi' : 'Lưu công việc';
     $('#taskDialog').showModal();
@@ -356,6 +357,7 @@
       notes: $('#taskNotes').value.trim(),
       category_id: $('#taskCategory').value || null,
       scheduled_date: $('#taskScheduledDate').value || null,
+      is_daily: $('#taskIsDaily').checked,
       due_date: $('#taskDueDate').value || null,
       priority: $('#taskPriority').value,
       user_id: currentUser.id
@@ -385,7 +387,8 @@
     try {
       const { error } = await client.from('tasks').update({
         is_completed: checked,
-        completed_at: checked ? new Date().toISOString() : null
+        completed_at: checked ? new Date().toISOString() : null,
+        ...(task.is_daily ? { daily_completed_on: checked ? todayString() : null } : {})
       }).eq('id', taskId).eq('user_id', currentUser.id);
       if (error) throw error;
       toast(checked ? 'Đã hoàn thành. Tốt lắm!' : 'Đã bỏ đánh dấu hoàn thành.', 'success');
