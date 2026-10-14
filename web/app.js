@@ -2,7 +2,7 @@
   'use strict';
 
   const $ = (selector) => document.querySelector(selector);
-  const $ = (selector) => Array.from(document.querySelectorAll(selector));
+  const queryAll = (selector) => Array.from(document.querySelectorAll(selector));
   const THEME_STORAGE_KEY = 'taskflow-theme';
 
   function readSavedTheme() {
@@ -303,8 +303,8 @@
     if (!currentUser) return;
     const activeCategory = currentView.startsWith('category:') ? getCategory(currentCategoryId) : null;
     const label = activeCategory ? activeCategory.name : (viewNames[currentView] || 'Hôm nay');
-    $$('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === currentView));
-    $$('.category-row').forEach((button) => button.classList.toggle('active', button.dataset.category === currentCategoryId && currentView.startsWith('category:')));
+    queryAll('.nav-item').forEach((button) => button.classList.toggle('active', button.dataset.view === currentView));
+    queryAll('.category-row').forEach((button) => button.classList.toggle('active', button.dataset.category === currentCategoryId && currentView.startsWith('category:')));
     $('#currentViewLabel').textContent = label;
     $('#pageTitle').textContent = label;
     $('#pageSubtitle').textContent = activeCategory ? `Các công việc trong danh mục ${activeCategory.name}.` : (viewDescriptions[currentView] || 'Bắt đầu từ việc quan trọng nhất.');
@@ -583,7 +583,7 @@
     $('#logoutTopBtn').addEventListener('click', performLogout);
     $('#themeToggle').addEventListener('click', () => applyTheme(activeTheme === 'dark' ? 'light' : 'dark'));
     applyTheme(activeTheme);
-    $$('.nav-item').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
+    queryAll('.nav-item').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
     $('#categoryList').addEventListener('click', (event) => {
       const deleteButton = event.target.closest('[data-delete-category]');
       if (deleteButton) { event.stopPropagation(); deleteCategory(deleteButton.dataset.deleteCategory); return; }
@@ -597,7 +597,7 @@
     $('#taskForm').addEventListener('submit', saveTask);
     $('#categoryForm').addEventListener('submit', createCategory);
     $('#addCategoryBtn').addEventListener('click', () => $('#categoryDialog').showModal());
-    $$('[data-close]').forEach((button) => button.addEventListener('click', () => $(`#${button.dataset.close}`).close()));
+    queryAll('[data-close]').forEach((button) => button.addEventListener('click', () => $(`#${button.dataset.close}`).close()));
     $('#taskList').addEventListener('change', (event) => {
       const checkbox = event.target.closest('[data-toggle-task]');
       if (checkbox) toggleTask(checkbox.dataset.toggleTask, checkbox.checked);
