@@ -37,6 +37,16 @@
     }
     if (icon) icon.textContent = isDark ? '☀' : '☾';
     if (label) label.textContent = isDark ? 'Sáng' : 'Tối';
+    const authButton = $('#authThemeToggle');
+    const authIcon = $('#authThemeIcon');
+    const authLabel = $('#authThemeLabel');
+    if (authButton) {
+      authButton.setAttribute('aria-pressed', String(isDark));
+      authButton.setAttribute('aria-label', isDark ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối');
+      authButton.title = isDark ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối';
+    }
+    if (authIcon) authIcon.textContent = isDark ? '☀' : '☾';
+    if (authLabel) authLabel.textContent = isDark ? 'Sáng' : 'Tối';
   }
 
   const config = window.TASKFLOW_CONFIG || {};
@@ -582,6 +592,7 @@
     $('#logoutBtn').addEventListener('click', performLogout);
     $('#logoutTopBtn').addEventListener('click', performLogout);
     $('#themeToggle').addEventListener('click', () => applyTheme(activeTheme === 'dark' ? 'light' : 'dark'));
+    $('#authThemeToggle').addEventListener('click', () => applyTheme(activeTheme === 'dark' ? 'light' : 'dark'));
     applyTheme(activeTheme);
     queryAll('.nav-item').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
     $('#categoryList').addEventListener('click', (event) => {
