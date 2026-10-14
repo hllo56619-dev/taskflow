@@ -37,6 +37,8 @@ alter table public.tasks
   add column if not exists is_daily boolean not null default false,
   add column if not exists daily_completed_on date;
 
+notify pgrst, 'reload schema';
+
 create index if not exists tasks_user_schedule_idx
   on public.tasks (user_id, scheduled_date, position);
 create index if not exists tasks_user_due_idx
