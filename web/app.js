@@ -2,7 +2,43 @@
   'use strict';
 
   const $ = (selector) => document.querySelector(selector);
-  const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+  const $ = (selector) => Array.from(document.querySelectorAll(selector));
+  const THEME_STORAGE_KEY = 'taskflow-theme';
+
+  function readSavedTheme() {
+    try {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch (error) {
+      console.warn('Không đọc được tùy chọn giao diện:', error);
+    }
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  let activeTheme = readSavedTheme();
+  document.documentElement.dataset.theme = activeTheme;
+
+  function applyTheme(theme) {
+    activeTheme = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = activeTheme;
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, activeTheme);
+    } catch (error) {
+      console.warn('Không lưu được tùy chọn giao diện:', error);
+    }
+    const button = $('#themeToggle');
+    const icon = $('#themeIcon');
+    const label = $('#themeLabel');
+    const isDark = activeTheme === 'dark';
+    if (button) {
+      button.setAttribute('aria-pressed', String(isDark));
+      button.setAttribute('aria-label', isDark ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối');
+      button.title = isDark ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối';
+    }
+    if (icon) icon.textContent = isDark ? '☀' : '☾';
+    if (label) label.textContent = isDark ? 'Sáng' : 'Tối';
+  }
+
   const config = window.TASKFLOW_CONFIG || {};
   const configured = Boolean(config.supabaseUrl && config.supabaseAnonKey &&
     !config.supabaseUrl.includes('YOUR-PROJECT-ID') &&
@@ -528,10 +564,25 @@
         $('#authSubmit').textContent = authMode === 'signup' ? 'Tạo tài khoản' : 'Đăng nhập';
       }
     });
-    $('#logoutBtn').addEventListener('click', async () => {
-      await client.auth.signOut();
-      await leaveApp();
-    });
+    const performLogout = async () => {
+      if (!client) return;
+      const button = $('#logoutTopBtn');
+      if (button) button.disabled = true;
+      try {
+        const { error } = await client.auth.signOut();
+        if (error) throw error;
+        await leaveApp();
+        toast('Đã đăng xuất khỏi TaskFlow.', 'success');
+      } catch (error) {
+        toast(error.message || 'Không đăng xuất được. Thử lại nhé.', 'error');
+      } finally {
+        if (button) button.disabled = false;
+      }
+    };
+    $('#logoutBtn').addEventListener('click', performLogout);
+    $('#logoutTopBtn').addEventListener('click', performLogout);
+    $('#themeToggle').addEventListener('click', () => applyTheme(activeTheme === 'dark' ? 'light' : 'dark'));
+    applyTheme(activeTheme);
     $$('.nav-item').forEach((button) => button.addEventListener('click', () => setView(button.dataset.view)));
     $('#categoryList').addEventListener('click', (event) => {
       const deleteButton = event.target.closest('[data-delete-category]');
