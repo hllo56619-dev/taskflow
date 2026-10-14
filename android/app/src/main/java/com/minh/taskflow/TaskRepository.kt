@@ -19,7 +19,9 @@ internal data class TaskItem(
     val dueDate: String?,
     val priority: String,
     val completed: Boolean,
-    val completedAt: String?
+    val completedAt: String?,
+    val isDaily: Boolean,
+    val dailyCompletedOn: String?
 )
 
 internal class NeedsEmailConfirmationException : Exception("Tài khoản đã tạo. Hãy xác nhận email rồi đăng nhập.")
@@ -27,6 +29,7 @@ internal class NeedsEmailConfirmationException : Exception("Tài khoản đã t�
 internal class TaskRepository(context: Context) {
     private val prefs = context.getSharedPreferences("taskflow_session", Context.MODE_PRIVATE)
     private val jsonType = "application/json; charset=utf-8".toMediaType()
+    private val dailyTaskIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val http = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -75,13 +78,15 @@ internal class TaskRepository(context: Context) {
     @Throws(Exception::class)
     fun fetchTasks(): List<TaskItem> {
         val userId = prefs.getString("user_id", null) ?: throw IOException("Phiên đăng nhập hết hạn. Hãy đăng nhập lại.")
-        val path = "/rest/v1/tasks?select=id,title,notes,scheduled_date,due_date,priority,is_completed,completed_at,position,created_at,categories(name)&user_id=eq.$userId&archived_at=is.null&order=position.asc,created_at.desc"
+        val path = "/rest/v1/tasks?select=id,title,notes,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,position,created_at,categories(name)&user_id=eq.$userId&archived_at=is.null&order=position.asc,created_at.desc"
         val response = protectedRequest(path, "GET", null)
         val array = parseArrayResponse(response)
+        dailyTaskIds.clear()
         val result = ArrayList<TaskItem>(array.length())
         for (index in 0 until array.length()) {
             val obj = array.getJSONObject(index)
             val categoryObj = obj.optJSONObject("categories")
+            if (obj.optBoolean("is_daily", false)) dailyTaskIds.add(obj.getString("id"))
             result.add(
                 TaskItem(
                     id = obj.getString("id"),
@@ -91,8 +96,10 @@ internal class TaskRepository(context: Context) {
                     scheduledDate = obj.optString("scheduled_date").takeUnless { it.isBlank() || it == "null" },
                     dueDate = obj.optString("due_date").takeUnless { it.isBlank() || it == "null" },
                     priority = obj.optString("priority", "normal"),
-                    completed = obj.optBoolean("is_completed", false),
-                    completedAt = obj.optString("completed_at").takeUnless { it.isBlank() || it == "null" }
+                    completed = if (obj.optBoolean("is_daily", false)) obj.optString("daily_completed_on") == java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) else obj.optBoolean("is_completed", false),
+                    completedAt = obj.optString("completed_at").takeUnless { it.isBlank() || it == "null" },
+                    isDaily = obj.optBoolean("is_daily", false),
+                    dailyCompletedOn = obj.optString("daily_completed_on").takeUnless { it.isBlank() || it == "null" }
                 )
             )
         }
@@ -105,6 +112,8 @@ internal class TaskRepository(context: Context) {
         val payload = JSONObject().put("is_completed", completed)
         // Set completed_at to a timestamp when checked; clear it when unchecked.
         payload.put("completed_at", if (completed) java.time.Instant.now().toString() else JSONObject.NULL)
+        val task = dailyTaskIds.contains(taskId)
+        if (task) payload.put("daily_completed_on", if (completed) java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) else JSONObject.NULL)
         val response = protectedRequest(
             "/rest/v1/tasks?id=eq.$taskId&user_id=eq.$userId",
             "PATCH",
