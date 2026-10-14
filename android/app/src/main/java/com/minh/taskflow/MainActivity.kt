@@ -176,6 +176,8 @@ class MainActivity : Activity() {
             textSize = 14f
             setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            setTextColor(ink)
+            setHintTextColor(muted)
             setPadding(dp(12), dp(11), dp(12), dp(11))
             background = rounded(surface, 10, line)
         }
@@ -187,8 +189,10 @@ class MainActivity : Activity() {
             textSize = 14f
             setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setTextColor(ink)
+            setHintTextColor(muted)
             setPadding(dp(12), dp(11), dp(12), dp(11))
-            background = rounded(Color.WHITE, 10, line)
+            background = rounded(surface, 10, line)
         }
         card.addView(authPasswordInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)))
         card.addView(space(19))
