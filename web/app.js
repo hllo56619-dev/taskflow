@@ -18,6 +18,8 @@
   let editingTaskId = null;
   let realtimeChannel = null;
   let loadInProgress = false;
+  let dailySchemaAvailable = false;
+  let dailySchemaWarningShown = false;
 
   const viewNames = {
     today: 'Hôm nay', daily: 'Công việc hằng ngày', upcoming: 'Sắp tới',
@@ -60,6 +62,31 @@
     })[char]);
   }
 
+  function isMissingDailyColumns(error) {
+    const message = String(error?.message || error || '');
+    return /is_daily|daily_completed_on/i.test(message) &&
+      (/42703|PGRST204|does not exist|could not find|schema cache/i.test(`${error?.code || ''} ${message}`));
+  }
+
+  function setDailySchemaAvailable(available) {
+    dailySchemaAvailable = available;
+    const checkbox = $('#taskIsDaily');
+    const hint = $('#dailyOptionHint');
+    if (checkbox) {
+      checkbox.disabled = !available;
+      if (!available) checkbox.checked = false;
+    }
+    if (hint) hint.textContent = available
+      ? 'Tự bỏ đánh dấu hoàn thành khi sang ngày mới.'
+      : 'Cần cập nhật Supabase để bật tính năng lặp lại hằng ngày.';
+    if (available) {
+      dailySchemaWarningShown = false;
+    } else if (!dailySchemaWarningShown) {
+      toast('Cơ sở dữ liệu chưa có cột công việc hằng ngày. Mở supabase/daily_tasks_migration.sql trong GitHub, sao chép câu lệnh vào Supabase → SQL Editor → Run. Các công việc hiện có vẫn dùng được.', 'error');
+      dailySchemaWarningShown = true;
+    }
+  }
+
   function todayString() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -98,7 +125,7 @@
     const today = todayString();
     if (currentView.startsWith('category:')) return task.category_id === currentCategoryId && !task.is_completed;
     switch (currentView) {
-      case 'today': return !task.is_completed && (task.scheduled_date === today || task.due_date === today || (!task.scheduled_date && !task.due_date));
+      case 'today': return !task.is_completed && (task.is_daily || task.scheduled_date === today || task.due_date === today || (!task.scheduled_date && !task.due_date));
       case 'daily': return Boolean(task.is_daily);
       case 'upcoming': return !task.is_completed && ((task.scheduled_date && task.scheduled_date > today) || (!task.scheduled_date && task.due_date && task.due_date > today));
       case 'overdue': return !task.is_completed && Boolean(task.due_date && task.due_date < today);
@@ -143,7 +170,7 @@
     $('#pendingStat').textContent = pending;
     $('#rateStat').textContent = `${rate}%`;
     $('#rateBar').style.width = `${rate}%`;
-    $('#todayCount').textContent = tasks.filter((task) => !task.is_completed && !task.archived_at && (task.scheduled_date === todayString() || task.due_date === todayString() || (!task.scheduled_date && !task.due_date))).length;
+    $('#todayCount').textContent = tasks.filter((task) => !task.is_completed && !task.archived_at && (task.is_daily || task.scheduled_date === todayString() || task.due_date === todayString() || (!task.scheduled_date && !task.due_date))).length;
     const dailyCount = $('#dailyCount');
     if (dailyCount) dailyCount.textContent = tasks.filter((task) => task.is_daily && !task.is_completed && !task.archived_at).length;
     $('#overdueCount').textContent = visible.filter(isOverdue).length;
@@ -271,14 +298,28 @@
     loadInProgress = true;
     setSyncState('', 'Đang đồng bộ…');
     try {
-      const [categoryResult, taskResult] = await Promise.all([
+      const [categoryResult, queriedTaskResult] = await Promise.all([
         client.from('categories').select('*').eq('user_id', currentUser.id).order('position').order('name'),
         client.from('tasks').select('id,user_id,title,notes,category_id,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,position,archived_at,created_at,updated_at').eq('user_id', currentUser.id).is('archived_at', null).order('position', { ascending: true }).order('created_at', { ascending: false })
       ]);
       if (categoryResult.error) throw categoryResult.error;
+      let taskResult = queriedTaskResult;
+      if (taskResult.error && isMissingDailyColumns(taskResult.error)) {
+        setDailySchemaAvailable(false);
+        taskResult = await client.from('tasks').select('id,user_id,title,notes,category_id,scheduled_date,due_date,priority,is_completed,completed_at,position,archived_at,created_at,updated_at').eq('user_id', currentUser.id).is('archived_at', null).order('position', { ascending: true }).order('created_at', { ascending: false });
+      } else if (!taskResult.error) {
+        setDailySchemaAvailable(true);
+      }
       if (taskResult.error) throw taskResult.error;
       categories = categoryResult.data || [];
-      tasks = (taskResult.data || []).map((task) => ({ ...task, is_completed: task.is_daily ? task.daily_completed_on === todayString() : task.is_completed }));
+      tasks = (taskResult.data || []).map((task) => ({
+        ...task,
+        is_daily: dailySchemaAvailable ? Boolean(task.is_daily) : false,
+        daily_completed_on: dailySchemaAvailable ? task.daily_completed_on : null,
+        is_completed: dailySchemaAvailable && task.is_daily
+          ? task.daily_completed_on === todayString()
+          : task.is_completed
+      }));
       if (!categories.length) await ensureDefaultCategories();
       setSyncState('online', 'Đã đồng bộ');
       render();
@@ -358,11 +399,19 @@
       notes: $('#taskNotes').value.trim(),
       category_id: $('#taskCategory').value || null,
       scheduled_date: $('#taskScheduledDate').value || null,
-      is_daily: $('#taskIsDaily').checked,
       due_date: $('#taskDueDate').value || null,
       priority: $('#taskPriority').value,
       user_id: currentUser.id
     };
+    const existingTask = editingTaskId ? tasks.find((task) => task.id === editingTaskId) : null;
+    if (dailySchemaAvailable) {
+      payload.is_daily = $('#taskIsDaily').checked;
+      if (existingTask && Boolean(existingTask.is_daily) !== payload.is_daily) {
+        payload.is_completed = false;
+        payload.completed_at = null;
+        payload.daily_completed_on = null;
+      }
+    }
     if (!editingTaskId) payload.position = tasks.length ? Math.min(...tasks.map((task) => Number(task.position || 0))) - 1 : 0;
     $('#saveTaskBtn').disabled = true;
     try {
@@ -389,7 +438,7 @@
       const { error } = await client.from('tasks').update({
         is_completed: checked,
         completed_at: checked ? new Date().toISOString() : null,
-        ...(task.is_daily ? { daily_completed_on: checked ? todayString() : null } : {})
+        ...(dailySchemaAvailable && task.is_daily ? { daily_completed_on: checked ? todayString() : null } : {})
       }).eq('id', taskId).eq('user_id', currentUser.id);
       if (error) throw error;
       toast(checked ? 'Đã hoàn thành. Tốt lắm!' : 'Đã bỏ đánh dấu hoàn thành.', 'success');
