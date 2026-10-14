@@ -57,6 +57,11 @@
       </header>
       <section id="taskView" class="page-content">
         <div class="page-heading"><div><p class="eyebrow" id="viewEyebrow">KẾ HOẠCH CỦA BẠN</p><h1 id="pageTitle">Hôm nay</h1><p id="pageSubtitle" class="muted">Bắt đầu từ việc quan trọng nhất.</p></div><button id="headingNewTaskBtn" class="button primary"><span>＋</span> Thêm việc</button></div>
+        <div id="schemaNotice" class="notice hidden" role="status">
+          Cơ sở dữ liệu chưa được nâng cấp cho công việc hằng ngày. Mở
+          <a href="https://github.com/hllo56619-dev/taskflow/blob/main/supabase/daily_tasks_migration.sql" target="_blank" rel="noreferrer">tệp migration trên GitHub</a>,
+          sao chép SQL vào Supabase → SQL Editor → New query rồi bấm Run. Công việc hiện có vẫn được giữ nguyên.
+        </div>
         <section id="statsStrip" class="stats-strip" aria-label="Tổng quan công việc">
           <div class="stat-card"><span class="stat-label">Tổng số việc</span><strong id="totalStat">0</strong><span class="stat-note">Chưa lưu trữ</span></div>
           <div class="stat-card"><span class="stat-label">Đã hoàn thành</span><strong id="completedStat">0</strong><span class="stat-note positive" id="completedNote">Tiếp tục phát huy</span></div>
