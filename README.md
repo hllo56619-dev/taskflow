@@ -35,10 +35,10 @@ Nếu Terminal báo `git: command not found`, hãy dừng lại và nhắn mình
 4. Mở file `supabase/schema.sql` trong bộ mã nguồn này bằng TextEdit (nếu dùng TextEdit, chọn **Format → Make Plain Text**). Sao chép toàn bộ nội dung.
 5. Trong trang Supabase, mở **SQL Editor → New query**, dán toàn bộ SQL vào và bấm **Run**.
 6. Mở phần cài đặt API của project, thường nằm ở **Project Settings → API Keys** hoặc mục **API**. Lấy hai thông tin:
-
-**Nếu bạn đã có TaskFlow từ trước:** khi dùng tính năng *Công việc hằng ngày*, hãy mở `supabase/daily_tasks_migration.sql`, sao chép toàn bộ câu lệnh vào **Supabase → SQL Editor → New query**, rồi bấm **Run** một lần. Lệnh này bổ sung cột còn thiếu mà không xóa công việc hiện có.
    - **Project URL** — địa chỉ project, dạng `https://ten-project.supabase.co`;
    - **Publishable key** — bắt đầu bằng `sb_publishable_...`. Legacy `anon` key cũng được hỗ trợ.
+
+**Nếu bạn đã có TaskFlow từ trước:** khi dùng tính năng *Công việc hằng ngày*, hãy mở `supabase/daily_tasks_migration.sql`, sao chép toàn bộ câu lệnh vào **Supabase → SQL Editor → New query**, rồi bấm **Run** một lần. Lệnh này bổ sung cột còn thiếu mà không xóa công việc hiện có.
 
 **Cảnh báo quan trọng:** tuyệt đối không dùng `service_role` key hay secret key trong web/app. Publishable/anon key được thiết kế để dùng phía client; RLS trong SQL mới là lớp hạn chế mỗi tài khoản chỉ truy cập dữ liệu của chính mình.
 
