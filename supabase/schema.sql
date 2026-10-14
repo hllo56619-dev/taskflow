@@ -32,6 +32,11 @@ create table if not exists public.tasks (
   updated_at timestamptz not null default now()
 );
 
+-- Keep existing installations compatible when this schema is re-run.
+alter table public.tasks
+  add column if not exists is_daily boolean not null default false,
+  add column if not exists daily_completed_on date;
+
 create index if not exists tasks_user_schedule_idx
   on public.tasks (user_id, scheduled_date, position);
 create index if not exists tasks_user_due_idx
