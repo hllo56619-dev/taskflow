@@ -346,7 +346,7 @@ class MainActivity : Activity() {
                 mainHandler.post {
                     allTasks = loaded
                     isLoading = false
-                    syncLabel?.text = "Đã đồng bộ · ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}"
+                    syncLabel?.text = if (repository.isDailyTaskSchemaAvailable()) "Đã đồng bộ · ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}" else "Đã đồng bộ · cập nhật Supabase để bật việc hằng ngày"
                     renderTaskRows()
                 }
             } catch (error: Exception) {
