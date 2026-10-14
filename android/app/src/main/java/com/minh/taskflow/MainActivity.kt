@@ -297,7 +297,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(16), 0, dp(16), dp(10))
         }
-        val tabs = listOf("Hôm nay", "Chưa xong", "Đã xong")
+        val tabs = listOf("Hôm nay", "Hằng ngày", "Chưa xong", "Đã xong")
         tabButtons = tabs.mapIndexed { index, text ->
             button(text, primary = index == currentFilter).apply {
                 textSize = 12f
@@ -367,6 +367,7 @@ class MainActivity : Activity() {
         val filtered = allTasks.filter { task ->
             when (currentFilter) {
                 FILTER_TODAY -> !task.completed && (task.scheduledDate == today || task.dueDate == today || (task.scheduledDate == null && task.dueDate == null))
+                FILTER_DAILY -> task.isDaily
                 FILTER_TODO -> !task.completed
                 FILTER_DONE -> task.completed
                 else -> !task.completed
@@ -376,6 +377,7 @@ class MainActivity : Activity() {
         val todoCount = allTasks.size - completedCount
         countLabel?.text = when (currentFilter) {
             FILTER_TODAY -> "${filtered.size} việc trong danh sách hôm nay"
+            FILTER_DAILY -> "${filtered.size} việc lặp lại hằng ngày"
             FILTER_TODO -> "Còn $todoCount việc chưa hoàn thành"
             else -> "$completedCount việc đã hoàn thành"
         }
@@ -391,7 +393,7 @@ class MainActivity : Activity() {
             empty.addView(icon, matchWrap())
             empty.addView(space(10))
             empty.addView(label(
-                when (currentFilter) { FILTER_TODAY -> "Hôm nay chưa có việc nào"; FILTER_TODO -> "Bạn đã xử lý hết việc"; else -> "Chưa có việc hoàn thành" },
+                when (currentFilter) { FILTER_TODAY -> "Hôm nay chưa có việc nào"; FILTER_DAILY -> "Chưa có việc hằng ngày"; FILTER_TODO -> "Bạn đã xử lý hết việc"; else -> "Chưa có việc hoàn thành" },
                 16f, ink, true
             ).apply { gravity = Gravity.CENTER }, matchWrap())
             empty.addView(space(7))
@@ -508,7 +510,8 @@ class MainActivity : Activity() {
 
     companion object {
         private const val FILTER_TODAY = 0
-        private const val FILTER_TODO = 1
-        private const val FILTER_DONE = 2
+        private const val FILTER_DAILY = 1
+        private const val FILTER_TODO = 2
+        private const val FILTER_DONE = 3
     }
 }
