@@ -43,3 +43,77 @@ body{background:radial-gradient(ellipse at 85% 0%,rgba(120,139,255,.09),transpar
 .daily-option small{font-size:11px;color:#7b8497;line-height:1.45}
 .toast{border-radius:12px;box-shadow:0 10px 30px rgba(20,30,60,.15)}
 @media(max-width:760px){.task-row{padding:13px}.stats-strip{gap:9px}.page-heading h1{font-size:27px}}
+
+
+/* Motion system — playful, quick, and respectful of reduced-motion settings. */
+:root{--motion-fast:160ms;--motion-mid:280ms;--ease-pop:cubic-bezier(.2,.85,.25,1.25);--ease-smooth:cubic-bezier(.22,1,.36,1)}
+html{scroll-behavior:smooth}
+body{isolation:isolate}
+body::before,body::after{content:"";position:fixed;z-index:-1;pointer-events:none;border-radius:50%;filter:blur(2px);opacity:.6}
+body::before{width:310px;height:310px;right:-125px;top:20%;background:radial-gradient(circle,rgba(127,143,255,.14),transparent 70%);animation:tfDrift 17s ease-in-out infinite alternate}
+body::after{width:250px;height:250px;left:-120px;bottom:2%;background:radial-gradient(circle,rgba(104,222,189,.13),transparent 70%);animation:tfDrift 21s ease-in-out infinite alternate-reverse}
+@keyframes tfRiseIn{from{opacity:0;transform:translateY(14px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes tfFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes tfSlideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+@keyframes tfPop{0%{transform:scale(.92)}55%{transform:scale(1.045)}100%{transform:scale(1)}}
+@keyframes tfCheck{0%{transform:scale(1)}35%{transform:scale(1.34) rotate(-7deg)}70%{transform:scale(.9) rotate(4deg)}100%{transform:scale(1)}}
+@keyframes tfShine{0%{background-position:180% 0}100%{background-position:-180% 0}}
+@keyframes tfGrow{from{transform:scaleY(.08);opacity:.3}to{transform:scaleY(1);opacity:1}}
+@keyframes tfDrift{from{transform:translate3d(0,-14px,0) scale(.95)}to{transform:translate3d(18px,18px,0) scale(1.08)}}
+@keyframes tfModalIn{from{opacity:0;transform:translateY(22px) scale(.96);filter:blur(3px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@keyframes tfBackdropIn{from{background:rgba(22,29,54,0);backdrop-filter:blur(0)}to{background:rgba(22,29,54,.42);backdrop-filter:blur(4px)}}
+@keyframes tfToastIn{0%{opacity:0;transform:translateY(14px) scale(.94)}70%{opacity:1;transform:translateY(-2px) scale(1.01)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes tfBrandPulse{0%,100%{box-shadow:0 7px 18px #536dfe40}50%{box-shadow:0 8px 27px #536dfe67}}
+@keyframes tfFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+#authScreen{animation:tfFadeIn .55s var(--ease-smooth) both}
+.auth-card{animation:tfRiseIn .68s var(--ease-smooth) both}
+.brand-large .brand-mark{animation:tfPop .7s var(--ease-pop) both,tfBrandPulse 4s ease-in-out 1s infinite}
+#appShell{animation:tfFadeIn .38s ease-out both}
+.sidebar .brand{animation:tfSlideIn .45s var(--ease-smooth) both}
+.new-task{animation:tfRiseIn .48s var(--ease-smooth) .04s both}
+.nav-item{position:relative;overflow:hidden;transition:background var(--motion-mid) ease,transform var(--motion-mid) var(--ease-smooth),color var(--motion-fast) ease,box-shadow var(--motion-mid) ease}
+.nav-item::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,.65) 48%,transparent 72%);background-size:220% 100%;background-position:180% 0;opacity:0;pointer-events:none}
+.nav-item:hover::after{opacity:1;animation:tfShine .7s ease}
+.nav-item.active{animation:tfPop .3s var(--ease-pop) both}
+.nav-item.active .nav-icon{display:inline-block;animation:tfPop .38s var(--ease-pop) both}
+.page-heading{animation:tfRiseIn .44s var(--ease-smooth) both}
+.stat-card{animation:tfRiseIn .55s var(--ease-smooth) both}
+.stat-card:nth-child(2){animation-delay:45ms}.stat-card:nth-child(3){animation-delay:90ms}.stat-card:nth-child(4){animation-delay:135ms}
+.stat-card strong{display:inline-block;transition:color var(--motion-mid),transform var(--motion-mid) var(--ease-pop)}
+.stat-card:hover strong{color:var(--blue);transform:scale(1.06)}
+.task-row{animation:tfRiseIn .43s var(--ease-smooth) both}
+.task-row:nth-child(1){animation-delay:0ms}.task-row:nth-child(2){animation-delay:35ms}.task-row:nth-child(3){animation-delay:70ms}.task-row:nth-child(4){animation-delay:105ms}.task-row:nth-child(5){animation-delay:140ms}.task-row:nth-child(6){animation-delay:175ms}.task-row:nth-child(7){animation-delay:210ms}.task-row:nth-child(8){animation-delay:245ms}.task-row:nth-child(n+9){animation-delay:270ms}
+.task-row.completed{animation:tfPop .34s var(--ease-smooth) both}
+.task-check{cursor:pointer;transition:transform var(--motion-fast) var(--ease-pop),filter var(--motion-fast)}
+.task-check:hover{transform:scale(1.14)}
+.task-check:checked{animation:tfCheck .4s var(--ease-pop) both;filter:drop-shadow(0 2px 3px rgba(83,109,254,.25))}
+.task-title{transition:color var(--motion-mid) ease}
+.button,.icon-button{transform:translateZ(0);transition:background var(--motion-fast) ease,color var(--motion-fast) ease,border-color var(--motion-fast) ease,box-shadow var(--motion-mid) ease,transform var(--motion-fast) var(--ease-pop)}
+.button:hover{transform:translateY(-2px)}
+.button:active,.icon-button:active{transform:scale(.95)}
+.button.primary:hover{box-shadow:0 9px 24px #536dfe45}
+.icon-button:hover{background:#edf0ff;color:var(--blue);transform:rotate(-4deg) scale(1.06)}
+.category-row{transition:background var(--motion-mid),transform var(--motion-fast) var(--ease-smooth)}
+.category-row:hover{transform:translateX(3px)}
+.category-dot{transition:transform var(--motion-mid) var(--ease-pop),box-shadow var(--motion-mid)}
+.category-row:hover .category-dot{transform:scale(1.25);box-shadow:0 0 0 4px rgba(83,109,254,.08)}
+.search-box,.filter-panel,input,textarea,select{transition:border-color var(--motion-fast),box-shadow var(--motion-fast),background var(--motion-fast)}
+.search-box:focus-within{box-shadow:0 0 0 4px rgba(83,109,254,.09);border-color:#a8b5ff}
+input:focus-visible,textarea:focus-visible,select:focus-visible{box-shadow:0 0 0 4px rgba(83,109,254,.1)}
+.modal[open]{animation:tfModalIn .32s var(--ease-smooth) both}
+.modal[open]::backdrop{animation:tfBackdropIn .3s ease both}
+.modal-form>*{animation:tfRiseIn .35s var(--ease-smooth) both}
+.modal-form>*:nth-child(2){animation-delay:20ms}.modal-form>*:nth-child(3){animation-delay:45ms}.modal-form>*:nth-child(4){animation-delay:70ms}.modal-form>*:nth-child(5){animation-delay:95ms}.modal-form>*:nth-child(6){animation-delay:120ms}.modal-form>*:nth-child(7){animation-delay:145ms}
+.daily-option{transition:transform var(--motion-fast) var(--ease-pop),border-color var(--motion-fast),box-shadow var(--motion-mid),background var(--motion-mid)}
+.daily-option:hover{transform:translateY(-1px);border-color:#b9c4ff;box-shadow:0 7px 18px rgba(83,109,254,.08)}
+.daily-option:has(input:checked){border-color:#9cabff;box-shadow:0 0 0 3px rgba(83,109,254,.08);background:linear-gradient(115deg,#eef0ff,#fff)}
+.toast{animation:tfToastIn .36s var(--ease-pop) both}
+.empty-state{animation:tfRiseIn .48s var(--ease-smooth) both}
+.empty-illustration{animation:tfFloat 3.8s ease-in-out infinite}
+.chart-bar{transform-origin:bottom;animation:tfGrow .75s var(--ease-smooth) both}
+.chart-col:nth-child(2) .chart-bar{animation-delay:60ms}.chart-col:nth-child(3) .chart-bar{animation-delay:120ms}.chart-col:nth-child(4) .chart-bar{animation-delay:180ms}.chart-col:nth-child(5) .chart-bar{animation-delay:240ms}.chart-col:nth-child(6) .chart-bar{animation-delay:300ms}.chart-col:nth-child(7) .chart-bar{animation-delay:360ms}
+.summary-card{animation:tfRiseIn .42s var(--ease-smooth) both}
+.summary-card:nth-child(2){animation-delay:55ms}.summary-card:nth-child(3){animation-delay:110ms}.summary-card:nth-child(4){animation-delay:165ms}
+#rateBar{transition:width .8s var(--ease-smooth)}
+@media(hover:none){.task-row:hover,.stat-card:hover,.button:hover{transform:none}.nav-item:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important;animation-delay:0ms!important}body::before,body::after{display:none}}
