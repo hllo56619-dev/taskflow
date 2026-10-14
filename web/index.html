@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7fb">
+  <meta name="description" content="TaskFlow — quản lý công việc đơn giản, đồng bộ giữa Mac và Android.">
+  <title>TaskFlow — Quản lý công việc</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="brand brand-large"><span class="brand-mark">✓</span><span>TaskFlow</span></div>
+      <p class="muted auth-subtitle">Việc rõ ràng. Đầu óc nhẹ nhàng.</p>
+      <div id="configWarning" class="notice hidden"></div>
+      <form id="authForm" class="stack">
+        <label>Email<input id="authEmail" type="email" autocomplete="email" placeholder="ban@email.com" required></label>
+        <label>Mật khẩu<input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="Ít nhất 6 ký tự" required></label>
+        <button id="authSubmit" class="button primary full" type="submit">Đăng nhập</button>
+      </form>
+      <p class="auth-switch"><span id="authSwitchLabel">Chưa có tài khoản?</span> <button id="authSwitch" class="link-button" type="button">Tạo tài khoản</button></p>
+      <p class="muted tiny">Dữ liệu được lưu trong Supabase và chỉ tài khoản của bạn được phép truy cập.</p>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="brand-mark">✓</span><span>TaskFlow</span></div>
+      <button id="newTaskBtn" class="button primary new-task"><span>＋</span> Tạo công việc</button>
+      <nav class="nav-list" aria-label="Danh sách công việc">
+        <button class="nav-item active" data-view="today"><span class="nav-icon">☼</span><span>Hôm nay</span><span class="nav-count" id="todayCount">0</span></button>
+        <button class="nav-item" data-view="tomorrow"><span class="nav-icon">↗</span><span>Ngày mai</span></button>
+        <button class="nav-item" data-view="upcoming"><span class="nav-icon">▦</span><span>Sắp tới</span></button>
+        <button class="nav-item" data-view="overdue"><span class="nav-icon">!</span><span>Quá hạn</span><span class="nav-count danger-text" id="overdueCount">0</span></button>
+        <button class="nav-item" data-view="all"><span class="nav-icon">☷</span><span>Tất cả việc</span></button>
+        <button class="nav-item" data-view="completed"><span class="nav-icon">✓</span><span>Đã hoàn thành</span></button>
+        <button class="nav-item" data-view="stats"><span class="nav-icon">▥</span><span>Thống kê</span></button>
+      </nav>
+      <div class="sidebar-section-head"><span>Danh mục</span><button id="addCategoryBtn" class="icon-button small" aria-label="Thêm danh mục" title="Thêm danh mục">＋</button></div>
+      <div id="categoryList" class="category-list"></div>
+      <div class="sidebar-bottom">
+        <div class="sync-indicator"><span id="syncDot" class="sync-dot"></span><span id="syncLabel">Đang kết nối</span></div>
+        <div class="account-row"><span class="avatar" id="avatarInitial">T</span><span id="accountEmail" class="account-email">Tài khoản</span><button id="logoutBtn" class="icon-button" title="Đăng xuất" aria-label="Đăng xuất">↪</button></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button id="mobileMenuBtn" class="icon-button mobile-only" aria-label="Mở menu">☰</button>
+        <div class="breadcrumb"><span>Không gian của bạn</span><span class="crumb-divider">/</span><strong id="currentViewLabel">Hôm nay</strong></div>
+        <div class="top-actions"><label class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="Tìm công việc…" aria-label="Tìm công việc"><kbd>⌘ K</kbd></label><button id="refreshBtn" class="icon-button" title="Làm mới" aria-label="Làm mới">↻</button></div>
+      </header>
+      <section id="taskView" class="page-content">
+        <div class="page-heading"><div><p class="eyebrow" id="viewEyebrow">KẾ HOẠCH CỦA BẠN</p><h1 id="pageTitle">Hôm nay</h1><p id="pageSubtitle" class="muted">Bắt đầu từ việc quan trọng nhất.</p></div><button id="headingNewTaskBtn" class="button primary"><span>＋</span> Thêm việc</button></div>
+        <section id="statsStrip" class="stats-strip" aria-label="Tổng quan công việc">
+          <div class="stat-card"><span class="stat-label">Tổng số việc</span><strong id="totalStat">0</strong><span class="stat-note">Chưa lưu trữ</span></div>
+          <div class="stat-card"><span class="stat-label">Đã hoàn thành</span><strong id="completedStat">0</strong><span class="stat-note positive" id="completedNote">Tiếp tục phát huy</span></div>
+          <div class="stat-card"><span class="stat-label">Còn lại</span><strong id="pendingStat">0</strong><span class="stat-note">Đang chờ xử lý</span></div>
+          <div class="stat-card"><span class="stat-label">Tỷ lệ hoàn thành</span><strong id="rateStat">0%</strong><div class="mini-progress"><span id="rateBar"></span></div></div>
+        </section>
+        <div class="list-toolbar"><div class="list-toolbar-left"><span id="taskCountLabel" class="muted small-text">0 công việc</span><button id="filterToggle" class="button secondary compact">☷ Bộ lọc</button><select id="sortSelect" class="sort-select" aria-label="Sắp xếp"><option value="manual">Thứ tự mặc định</option><option value="priority">Ưu tiên cao trước</option><option value="due">Hạn gần nhất</option><option value="newest">Mới tạo trước</option></select></div><div id="activeFilterLabel" class="filter-pill hidden"></div></div>
+        <div id="filterPanel" class="filter-panel hidden">
+          <label>Danh mục<select id="filterCategory"><option value="">Tất cả danh mục</option></select></label>
+          <label>Ưu tiên<select id="filterPriority"><option value="">Mọi mức</option><option value="high">Cao</option><option value="normal">Bình thường</option><option value="low">Thấp</option></select></label>
+          <button id="clearFiltersBtn" class="link-button" type="button">Xóa bộ lọc</button>
+        </div>
+        <div id="taskList" class="task-list"></div>
+        <div id="emptyState" class="empty-state hidden"><div class="empty-illustration">✓</div><h3 id="emptyTitle">Mọi việc đã rõ ràng</h3><p id="emptyText" class="muted">Tạo công việc đầu tiên của bạn.</p><button id="emptyCreateBtn" class="button primary">＋ Tạo công việc</button></div>
+      </section>
+      <section id="statsView" class="page-content hidden">
+        <div class="page-heading"><div><p class="eyebrow">NHÌN LẠI TIẾN ĐỘ</p><h1>Thống kê</h1><p class="muted">Theo dõi tiến độ và nhịp làm việc của bạn.</p></div></div>
+        <div id="statsSummary" class="stats-summary-grid"></div>
+        <div class="analytics-grid"><section class="panel"><div class="panel-head"><h2>Hoàn thành trong 7 ngày</h2><span class="muted small-text">Theo ngày</span></div><div id="weeklyChart" class="weekly-chart"></div></section><section class="panel"><div class="panel-head"><h2>Theo danh mục</h2></div><div id="categoryStats" class="category-stats"></div></section></div>
+      </section>
+      <footer class="page-footer"><span>TaskFlow · Tập trung vào việc quan trọng</span><span id="lastUpdated">Dữ liệu đồng bộ qua Supabase</span></footer>
+    </main>
+  </div>
+
+  <dialog id="taskDialog" class="modal">
+    <form id="taskForm" class="modal-form">
+      <div class="modal-header"><div><p class="eyebrow">CÔNG VIỆC</p><h2 id="taskDialogTitle">Tạo công việc</h2></div><button type="button" class="icon-button" data-close="taskDialog" aria-label="Đóng">×</button></div>
+      <label>Tên công việc <input id="taskTitle" maxlength="240" required placeholder="Ví dụ: Làm 5 bài toán"></label>
+      <label>Ghi chú <textarea id="taskNotes" rows="3" placeholder="Chi tiết hoặc các bước cần nhớ…"></textarea></label>
+      <div class="form-grid"><label>Danh mục<select id="taskCategory"><option value="">Chưa phân loại</option></select></label><label>Độ ưu tiên<select id="taskPriority"><option value="normal">Bình thường</option><option value="high">Cao</option><option value="low">Thấp</option></select></label></div>
+      <div class="form-grid"><label>Ngày dự định làm<input id="taskScheduledDate" type="date"></label><label>Hạn cuối<input id="taskDueDate" type="date"></label></div>
+      <p class="muted tiny">Ngày dự định làm và hạn cuối là hai thông tin riêng biệt.</p>
+      <div class="modal-actions"><button type="button" class="button secondary" data-close="taskDialog">Hủy</button><button id="saveTaskBtn" class="button primary" type="submit">Lưu công việc</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="categoryDialog" class="modal modal-narrow">
+    <form id="categoryForm" class="modal-form">
+      <div class="modal-header"><div><p class="eyebrow">SẮP XẾP</p><h2>Thêm danh mục</h2></div><button type="button" class="icon-button" data-close="categoryDialog" aria-label="Đóng">×</button></div>
+      <label>Tên danh mục<input id="categoryName" maxlength="60" required placeholder="Ví dụ: Học tập"></label>
+      <label>Màu sắc<div class="color-field"><input id="categoryColor" type="color" value="#64748b"><span class="muted small-text">Chọn màu nhận diện danh mục</span></div></label>
+      <div class="modal-actions"><button type="button" class="button secondary" data-close="categoryDialog">Hủy</button><button class="button primary" type="submit">Tạo danh mục</button></div>
+    </form>
+  </dialog>
+  <div id="toastRegion" class="toast-region" role="status" aria-live="polite"></div>
+</body>
+</html>
