@@ -75,12 +75,34 @@ internal class TaskRepository(context: Context) {
         prefs.edit().clear().apply()
     }
 
+    private var dailyColumnsAvailable = true
+
+    fun isDailyTaskSchemaAvailable(): Boolean = dailyColumnsAvailable
+
     @Throws(Exception::class)
     fun fetchTasks(): List<TaskItem> {
         val userId = prefs.getString("user_id", null) ?: throw IOException("Phiên đăng nhập hết hạn. Hãy đăng nhập lại.")
-        val path = "/rest/v1/tasks?select=id,title,notes,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,position,created_at,categories(name)&user_id=eq.$userId&archived_at=is.null&order=position.asc,created_at.desc"
-        val response = protectedRequest(path, "GET", null)
-        val array = parseArrayResponse(response)
+        val dailyPath = "/rest/v1/tasks?select=id,title,notes,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,position,created_at,categories(name)&user_id=eq.$userId&archived_at=is.null&order=position.asc,created_at.desc"
+        val legacyPath = "/rest/v1/tasks?select=id,title,notes,scheduled_date,due_date,priority,is_completed,completed_at,position,created_at,categories(name)&user_id=eq.$userId&archived_at=is.null&order=position.asc,created_at.desc"
+        val array = if (dailyColumnsAvailable) {
+            try {
+                parseArrayResponse(protectedRequest(dailyPath, "GET", null))
+            } catch (error: IOException) {
+                val message = error.message.orEmpty()
+                val missingDailyColumn = (message.contains("is_daily", ignoreCase = true) ||
+                    message.contains("daily_completed_on", ignoreCase = true)) &&
+                    (message.contains("does not exist", ignoreCase = true) ||
+                    message.contains("could not find", ignoreCase = true) ||
+                    message.contains("schema cache", ignoreCase = true) ||
+                    message.contains("42703", ignoreCase = true) ||
+                    message.contains("PGRST204", ignoreCase = true))
+                if (!missingDailyColumn) throw error
+                dailyColumnsAvailable = false
+                parseArrayResponse(protectedRequest(legacyPath, "GET", null))
+            }
+        } else {
+            parseArrayResponse(protectedRequest(legacyPath, "GET", null))
+        }
         dailyTaskIds.clear()
         val result = ArrayList<TaskItem>(array.length())
         for (index in 0 until array.length()) {
