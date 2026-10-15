@@ -1,4 +1,4 @@
-# TaskFlow — Quản lý công việc trên Mac và Android
+# TaskFlow — Quản lý công việc trên Mac, Android và iPhone
 
 TaskFlow là bộ ứng dụng cá nhân gồm hai phần dùng chung dữ liệu Supabase:
 
@@ -146,6 +146,26 @@ Mở `http://localhost:8000` trên trình duyệt. Dừng server bằng **Contro
 7. Mở TaskFlow và đăng nhập bằng đúng email/mật khẩu đã dùng trên web.
 
 APK này là **debug build để thử nghiệm cá nhân**, không phải bản phát hành Google Play. Không cần Play Store để cài thủ công. GitHub giữ artifact mặc định 14 ngày, nên hãy tải về trước khi hết hạn nếu muốn giữ bản build đó.
+
+## Bản iPhone (iOS)
+
+Mã nguồn native cho iPhone nằm trong thư mục `ios/TaskFlow` và dùng chung tài khoản/dữ liệu Supabase với website và Android. Bản iOS hiện có đăng nhập/tạo tài khoản, danh sách Hôm nay/Hằng ngày/Chưa xong/Đã xong, tích hoàn thành, làm mới dữ liệu, chế độ sáng/tối và đăng xuất.
+
+Mỗi lần cập nhật mã nguồn iOS, GitHub Actions sẽ chạy workflow **Build TaskFlow for iPhone**. Khi workflow thành công, mở lần chạy đó → **Artifacts**:
+- `TaskFlow-iOS-Xcode-Project`: dự án Xcode đã được tạo sẵn để mở trên Mac.
+- `TaskFlow-iOS-Builds`: bản build iOS Simulator và bản build thiết bị chưa ký.
+
+### Cài lên iPhone thật
+
+iOS yêu cầu ứng dụng được ký trước khi cài lên iPhone. Tệp build chưa ký trong Artifacts dùng để kiểm tra build, **không thể cài trực tiếp như APK Android**. Để chạy app trên iPhone:
+
+1. Tải và giải nén artifact `TaskFlow-iOS-Xcode-Project` trên Mac có Xcode.
+2. Mở `TaskFlow.xcodeproj`.
+3. Kết nối iPhone với Mac, chọn iPhone làm thiết bị chạy.
+4. Trong **Signing & Capabilities**, chọn Team là Apple ID/Apple Developer của bạn và dùng một Bundle Identifier riêng nếu Xcode yêu cầu.
+5. Nhấn **Run** trong Xcode để cài và mở ứng dụng trên iPhone.
+
+Bạn có thể chạy bản trên iPhone cá nhân bằng Personal Team của Apple ID trong Xcode; thời hạn ký phát triển có thể cần làm mới định kỳ. Phát hành cho người khác hoặc qua App Store cần quy trình ký/phân phối riêng. Không cần đưa Apple certificate hay mật khẩu vào GitHub.
 
 ## Khắc phục lỗi thường gặp
 
