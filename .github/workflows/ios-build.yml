@@ -1,0 +1,70 @@
+name: Build TaskFlow for iPhone
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    name: Build native iOS app
+    runs-on: macos-15
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v6
+
+      - name: Set up Xcode project generator
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec ios/project.yml --project ios/TaskFlow.xcodeproj
+
+      - name: Build for iPhone simulator
+        run: |
+          xcodebuild \
+            -project ios/TaskFlow.xcodeproj \
+            -scheme TaskFlow \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/TaskFlowSimulator" \
+            CODE_SIGNING_ALLOWED=NO build
+
+      - name: Package simulator app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/TaskFlowSimulator/Build/Products/Debug-iphonesimulator/TaskFlow.app" \
+            "$RUNNER_TEMP/TaskFlow-iOS-Simulator-App.zip"
+
+      - name: Build unsigned iPhone device app
+        run: |
+          xcodebuild \
+            -project ios/TaskFlow.xcodeproj \
+            -scheme TaskFlow \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/TaskFlowDevice" \
+            CODE_SIGNING_ALLOWED=NO build
+
+      - name: Package unsigned device app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/TaskFlowDevice/Build/Products/Debug-iphoneos/TaskFlow.app" \
+            "$RUNNER_TEMP/TaskFlow-iOS-Device-Unsigned-App.zip"
+
+      - name: Upload iOS build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TaskFlow-iOS-Builds
+          path: |
+            ${{ runner.temp }}/TaskFlow-iOS-Simulator-App.zip
+            ${{ runner.temp }}/TaskFlow-iOS-Device-Unsigned-App.zip
+          if-no-files-found: error
+          retention-days: 14
