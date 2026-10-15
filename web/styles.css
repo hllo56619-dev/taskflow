@@ -10,7 +10,7 @@
 :root{--blue:#536dfe;--blue-dark:#4055db;--blue-soft:#eef0ff;--bg:#f5f6fc;--surface:#fff;--shadow:0 14px 40px rgba(36,48,96,.07)}
 body{background:radial-gradient(ellipse at 85% 0%,rgba(120,139,255,.09),transparent 34%),var(--bg)}
 .sidebar{background:linear-gradient(180deg,#fff 0%,#fafbff 100%);border-right-color:#e9ecf7}
-.brand-mark{background:linear-gradient(145deg,#6b7cff,#485ce5);box-shadow:0 7px 18px #536dfe40}
+.brand-mark{background:#3563e9;box-shadow:0 5px 12px #3563e933}
 .nav-item{border-radius:12px;margin:3px 0;transition:background .18s,transform .18s,color .18s}
 .nav-item:hover{transform:translateX(2px);background:#f2f4ff}
 .nav-item.active{background:linear-gradient(100deg,#edf0ff,#f4f5ff);color:#4055db;box-shadow:inset 3px 0 #536dfe}
@@ -197,3 +197,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{box-shadow:0 0 0
 .auth-theme-toggle>span:first-child{font-size:16px}
 :root[data-theme="dark"] .auth-theme-toggle{background:#20273ae8;border-color:#39425b;color:var(--text)}
 @media(max-width:520px){.auth-theme-toggle{right:14px;top:14px;padding:8px 10px}}
+
+
+/* Daily view is for reviewing/managing recurring tasks; completion happens from Today. */
+.task-daily-marker{display:grid;place-items:center;flex:0 0 19px;width:19px;height:19px;margin-top:2px;border-radius:6px;background:var(--blue-soft);color:var(--blue);font-size:16px;font-weight:800;line-height:1}
