@@ -25,6 +25,24 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate --spec ios/project.yml --project ios/TaskFlow.xcodeproj
 
+      - name: Package Xcode project for opening on Mac
+        run: |
+          mkdir -p "$RUNNER_TEMP/TaskFlowXcodeProject"
+          ditto ios/TaskFlow.xcodeproj "$RUNNER_TEMP/TaskFlowXcodeProject/TaskFlow.xcodeproj"
+          ditto ios/TaskFlow "$RUNNER_TEMP/TaskFlowXcodeProject/TaskFlow"
+          cp ios/project.yml "$RUNNER_TEMP/TaskFlowXcodeProject/project.yml"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$RUNNER_TEMP/TaskFlowXcodeProject" \
+            "$RUNNER_TEMP/TaskFlow-iOS-Xcode-Project.zip"
+
+      - name: Upload generated Xcode project
+        uses: actions/upload-artifact@v4
+        with:
+          name: TaskFlow-iOS-Xcode-Project
+          path: ${{ runner.temp }}/TaskFlow-iOS-Xcode-Project.zip
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Build for iPhone simulator
         run: |
           xcodebuild \
