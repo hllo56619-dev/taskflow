@@ -173,7 +173,7 @@
     const today = todayString();
     if (currentView.startsWith('category:')) return task.category_id === currentCategoryId && !task.is_completed;
     switch (currentView) {
-      case 'today': return !task.is_completed && (task.is_daily || task.scheduled_date === today || task.due_date === today || (!task.scheduled_date && !task.due_date));
+      case 'today': return task.is_daily || (!task.is_completed && (task.scheduled_date === today || task.due_date === today || (!task.scheduled_date && !task.due_date)));
       case 'daily': return Boolean(task.is_daily);
       case 'upcoming': return !task.is_completed && ((task.scheduled_date && task.scheduled_date > today) || (!task.scheduled_date && task.due_date && task.due_date > today));
       case 'overdue': return !task.is_completed && Boolean(task.due_date && task.due_date < today);
