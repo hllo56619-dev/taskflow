@@ -146,20 +146,9 @@ struct ContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    HStack(alignment: .top, spacing: 12) {
-                        logoMark(size: 44)
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("TASKFLOW")
-                                .font(.caption.weight(.bold))
-                                .tracking(2)
-                                .foregroundStyle(.indigo)
-                            Text("Việc cần làm")
-                                .font(.largeTitle.bold())
-                            Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 4)
+                    // Keep action buttons separate so the title never wraps into narrow columns.
+                    HStack(spacing: 8) {
+                        Spacer(minLength: 0)
                         Button {
                             taskDraftTitle = ""
                             taskDraftNotes = ""
@@ -169,7 +158,7 @@ struct ContentView: View {
                         } label: {
                             Image(systemName: "plus")
                                 .font(.headline.weight(.bold))
-                                .frame(width: 42, height: 42)
+                                .frame(width: 44, height: 44)
                                 .background(Color.indigo, in: RoundedRectangle(cornerRadius: 13))
                                 .foregroundStyle(.white)
                         }
@@ -180,11 +169,35 @@ struct ContentView: View {
                         } label: {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
                                 .font(.headline)
-                                .frame(width: 42, height: 42)
+                                .frame(width: 44, height: 44)
                                 .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 13))
                         }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Đăng xuất")
                     }
+
+                    HStack(alignment: .center, spacing: 12) {
+                        logoMark(size: 48)
+                            .fixedSize()
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("TASKFLOW")
+                                .font(.caption.weight(.bold))
+                                .tracking(2)
+                                .foregroundStyle(.indigo)
+                                .lineLimit(1)
+                            Text("Việc cần làm")
+                                .font(.largeTitle.bold())
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.78)
+                            Text(todayDateLabel)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     summaryCard
 
@@ -450,6 +463,15 @@ struct ContentView: View {
         .frame(width: size, height: size)
         .shadow(color: .indigo.opacity(isDarkMode ? 0.18 : 0.24), radius: size * 0.16, y: size * 0.09)
         .accessibilityLabel("TaskFlow")
+    }
+
+    private var todayDateLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "vi_VN")
+        formatter.timeZone = .current
+        formatter.dateFormat = "EEEE, d MMMM"
+        let value = formatter.string(from: Date())
+        return value.prefix(1).uppercased() + value.dropFirst()
     }
 
     private var themeButton: some View {
