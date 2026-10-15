@@ -411,7 +411,7 @@ class MainActivity : Activity() {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val filtered = allTasks.filter { task ->
             when (currentFilter) {
-                FILTER_TODAY -> !task.completed && (task.isDaily || task.scheduledDate == today || task.dueDate == today || (task.scheduledDate == null && task.dueDate == null))
+                FILTER_TODAY -> task.isDaily || (!task.completed && (task.scheduledDate == today || task.dueDate == today || (task.scheduledDate == null && task.dueDate == null)))
                 FILTER_DAILY -> task.isDaily
                 FILTER_TODO -> !task.completed
                 FILTER_DONE -> task.completed
@@ -464,7 +464,7 @@ class MainActivity : Activity() {
                     if (checked != task.completed) changeTaskStatus(task, checked)
                 }
             }
-            if (currentFilter == FILTER_DAILY) {
+            if (currentFilter == FILTER_DAILY || (task.isDaily && currentFilter != FILTER_TODAY)) {
                 val dailyMarker = label("↻", 20f, blue, true).apply {
                     gravity = Gravity.CENTER
                     contentDescription = "Công việc hằng ngày; đánh dấu hoàn thành ở mục Hôm nay"
@@ -507,7 +507,7 @@ class MainActivity : Activity() {
                 textColumn.addView(label(meta, 11f, if (!task.completed && task.dueDate != null && task.dueDate < today) Color.rgb(205, 66, 76) else muted), matchWrap())
             }
             row.addView(textColumn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            row.setOnClickListener { if (currentFilter != FILTER_DAILY) checkbox.isChecked = !checkbox.isChecked }
+            row.setOnClickListener { if (currentFilter != FILTER_DAILY && (!task.isDaily || currentFilter == FILTER_TODAY)) checkbox.isChecked = !checkbox.isChecked }
             val params = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             params.bottomMargin = dp(8)
             container.addView(row, params)
