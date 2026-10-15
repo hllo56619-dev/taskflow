@@ -27,27 +27,16 @@ NSGraphicsContext.current = context
 context.imageInterpolation = .high
 
 let bounds = NSRect(x: 0, y: 0, width: size, height: size)
-let gradient = NSGradient(colors: [
-    NSColor(calibratedRed: 0.10, green: 0.27, blue: 0.98, alpha: 1),
-    NSColor(calibratedRed: 0.29, green: 0.20, blue: 0.91, alpha: 1)
-])!
-gradient.draw(in: bounds, angle: -35)
 
-// A clean white checklist mark; iOS applies the final rounded icon mask.
-let tile = NSBezierPath(
-    roundedRect: NSRect(x: 235, y: 235, width: 554, height: 554),
-    xRadius: 122,
-    yRadius: 122
-)
-tile.lineWidth = 58
-NSColor.white.setStroke()
-tile.stroke()
+// Match the TaskFlow mark from the website: solid blue square with a simple white check.
+NSColor(calibratedRed: 0.208, green: 0.388, blue: 0.914, alpha: 1).setFill()
+bounds.fill()
 
 let check = NSBezierPath()
-check.move(to: NSPoint(x: 333, y: 510))
-check.line(to: NSPoint(x: 450, y: 392))
-check.line(to: NSPoint(x: 692, y: 632))
-check.lineWidth = 72
+check.move(to: NSPoint(x: 248, y: 524))
+check.line(to: NSPoint(x: 420, y: 352))
+check.line(to: NSPoint(x: 775, y: 716))
+check.lineWidth = 105
 check.lineCapStyle = .round
 check.lineJoinStyle = .round
 NSColor.white.setStroke()
@@ -56,7 +45,10 @@ check.stroke()
 context.flushGraphics()
 NSGraphicsContext.restoreGraphicsState()
 
-let pngData = bitmap.representation(using: .png, properties: [:])!
+guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
+    fputs("Failed to encode TaskFlow app icon as PNG.\n", stderr)
+    exit(1)
+}
 try FileManager.default.createDirectory(
     at: outputURL.deletingLastPathComponent(),
     withIntermediateDirectories: true
