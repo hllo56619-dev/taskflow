@@ -22,6 +22,9 @@ jobs:
       - name: Set up Xcode project generator
         run: brew install xcodegen
 
+      - name: Generate TaskFlow app icon
+        run: swift ios/scripts/generate_app_icon.swift ios/TaskFlow/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+
       - name: Generate Xcode project
         run: xcodegen generate --spec ios/project.yml --project ios
 
@@ -30,6 +33,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/TaskFlowXcodeProject"
           ditto ios/TaskFlow.xcodeproj "$RUNNER_TEMP/TaskFlowXcodeProject/TaskFlow.xcodeproj"
           ditto ios/TaskFlow "$RUNNER_TEMP/TaskFlowXcodeProject/TaskFlow"
+          mkdir -p "$RUNNER_TEMP/TaskFlowXcodeProject/scripts"
+          cp ios/scripts/generate_app_icon.swift "$RUNNER_TEMP/TaskFlowXcodeProject/scripts/generate_app_icon.swift"
           cp ios/project.yml "$RUNNER_TEMP/TaskFlowXcodeProject/project.yml"
           ditto -c -k --sequesterRsrc --keepParent \
             "$RUNNER_TEMP/TaskFlowXcodeProject" \
