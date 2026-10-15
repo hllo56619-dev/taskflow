@@ -200,7 +200,7 @@ struct ContentView: View {
                     } else {
                         LazyVStack(spacing: 11) {
                             ForEach(selectedTasks) { task in
-                                taskCard(task, canToggle: selectedFilter != .daily)
+                                taskCard(task, canToggle: selectedFilter == .today || !task.isDaily)
                                     .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
                             }
                         }
@@ -468,7 +468,7 @@ struct ContentView: View {
         let today = Self.todayString()
         switch selectedFilter {
         case .today:
-            return store.tasks.filter { !$0.isCompleted && ($0.isDaily || $0.scheduledDate == today || $0.dueDate == today || ($0.scheduledDate == nil && $0.dueDate == nil)) }
+            return store.tasks.filter { $0.isDaily || (!$0.isCompleted && ($0.scheduledDate == today || $0.dueDate == today || ($0.scheduledDate == nil && $0.dueDate == nil))) }
         case .daily:
             return store.tasks.filter(\.isDaily)
         case .open:
