@@ -459,7 +459,7 @@
     $('#taskCategory').value = task?.category_id || '';
     $('#taskPriority').value = task?.priority || 'normal';
     $('#taskScheduledDate').value = task?.scheduled_date || (currentView === 'today' ? todayString() : '');
-    $('#taskIsDaily').checked = Boolean(task?.is_daily);
+    $('#taskIsDaily').checked = task ? Boolean(task.is_daily) : currentView === 'daily';
     $('#taskDueDate').value = task?.due_date || '';
     $('#saveTaskBtn').textContent = task ? 'Lưu thay đổi' : 'Lưu công việc';
     $('#taskDialog').showModal();
