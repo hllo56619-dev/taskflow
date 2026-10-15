@@ -452,7 +452,15 @@ class MainActivity : Activity() {
                     if (checked != task.completed) changeTaskStatus(task, checked)
                 }
             }
-            row.addView(checkbox, LinearLayout.LayoutParams(dp(48), dp(52)))
+            if (currentFilter == FILTER_DAILY) {
+                val dailyMarker = label("↻", 20f, blue, true).apply {
+                    gravity = Gravity.CENTER
+                    contentDescription = "Công việc hằng ngày; đánh dấu hoàn thành ở mục Hôm nay"
+                }
+                row.addView(dailyMarker, LinearLayout.LayoutParams(dp(48), dp(52)))
+            } else {
+                row.addView(checkbox, LinearLayout.LayoutParams(dp(48), dp(52)))
+            }
 
             val textColumn = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -487,7 +495,7 @@ class MainActivity : Activity() {
                 textColumn.addView(label(meta, 11f, if (!task.completed && task.dueDate != null && task.dueDate < today) Color.rgb(205, 66, 76) else muted), matchWrap())
             }
             row.addView(textColumn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-            row.setOnClickListener { checkbox.isChecked = !checkbox.isChecked }
+            row.setOnClickListener { if (currentFilter != FILTER_DAILY) checkbox.isChecked = !checkbox.isChecked }
             val params = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             params.bottomMargin = dp(8)
             container.addView(row, params)
