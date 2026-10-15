@@ -161,7 +161,19 @@ class MainActivity : Activity() {
             background = rounded(surface, 22, line)
             elevation = dp(2).toFloat()
         }
-        val brand = label("✓  TaskFlow", 27f, blue, true).apply { gravity = Gravity.CENTER }
+        val brand = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            val mark = label("✓", 20f, Color.WHITE, true).apply {
+                gravity = Gravity.CENTER
+                background = rounded(blue, 9)
+            }
+            addView(mark, LinearLayout.LayoutParams(dp(36), dp(36)))
+            val title = label("TaskFlow", 27f, ink, true).apply {
+                setPadding(dp(9), 0, 0, 0)
+            }
+            addView(title, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(40)))
+        }
         val heading = label("Danh sách việc của bạn", 20f, ink, true).apply { gravity = Gravity.CENTER }
         val subtitle = label("Đăng nhập để đồng bộ với Mac", 13f, muted).apply { gravity = Gravity.CENTER }
         card.addView(brand, matchWrap())
