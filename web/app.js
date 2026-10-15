@@ -258,8 +258,11 @@
       }
       const notes = task.notes ? `<div class="task-notes">${escapeHtml(task.notes)}</div>` : '';
       const categoryBit = category ? `<span class="meta-pill category-pill"><span class="category-dot" style="background:${escapeHtml(category.color)}"></span>${escapeHtml(category.name)}</span>` : '';
+      const completionControl = currentView === 'daily'
+        ? '<span class="task-daily-marker" title="Công việc hằng ngày" aria-label="Công việc hằng ngày">↻</span>'
+        : `<input class="task-check" type="checkbox" data-toggle-task="${escapeHtml(task.id)}" ${task.is_completed ? 'checked' : ''} aria-label="${task.is_completed ? 'Bỏ hoàn thành' : 'Đánh dấu hoàn thành'}: ${escapeHtml(task.title)}">`;
       return `<article class="task-row${task.is_completed ? ' completed' : ''}" data-task-row="${escapeHtml(task.id)}">
-        <input class="task-check" type="checkbox" data-toggle-task="${escapeHtml(task.id)}" ${task.is_completed ? 'checked' : ''} aria-label="${task.is_completed ? 'Bỏ hoàn thành' : 'Đánh dấu hoàn thành'}: ${escapeHtml(task.title)}">
+        ${completionControl}
         <div class="task-main"><div class="task-title">${escapeHtml(task.title)}</div>${notes}<div class="task-meta">${categoryBit}${dateBits.join('')}<span class="meta-pill"><span class="priority-dot ${escapeHtml(task.priority)}"></span>${priorityLabel}</span></div></div>
         <div class="task-actions"><button class="icon-button edit-action" data-edit-task="${escapeHtml(task.id)}" title="Sửa công việc" aria-label="Sửa công việc">✎</button><button class="icon-button" data-delete-task="${escapeHtml(task.id)}" title="Xóa công việc" aria-label="Xóa công việc">×</button></div>
       </article>`;
@@ -614,7 +617,6 @@
         if (button) button.disabled = false;
       }
     };
-    $('#logoutBtn').addEventListener('click', performLogout);
     $('#logoutTopBtn').addEventListener('click', performLogout);
     $('#themeToggle').addEventListener('click', () => applyTheme(activeTheme === 'dark' ? 'light' : 'dark'));
     $('#authThemeToggle').addEventListener('click', () => applyTheme(activeTheme === 'dark' ? 'light' : 'dark'));
