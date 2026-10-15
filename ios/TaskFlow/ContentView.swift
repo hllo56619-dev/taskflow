@@ -15,6 +15,11 @@ struct ContentView: View {
     @State private var password = ""
     @State private var createAccount = false
     @State private var selectedFilter: TaskFilter = .today
+    @State private var showingTaskEditor = false
+    @State private var taskDraftTitle = ""
+    @State private var taskDraftNotes = ""
+    @State private var taskDraftPriority = "normal"
+    @State private var taskDraftIsDaily = false
 
     var body: some View {
         Group {
@@ -39,6 +44,9 @@ struct ContentView: View {
             Button("Đóng", role: .cancel) { store.clearAlert() }
         } message: {
             Text(store.alertMessage ?? "")
+        }
+        .sheet(isPresented: $showingTaskEditor) {
+            taskEditor
         }
     }
 
@@ -152,6 +160,20 @@ struct ContentView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 4)
+                        Button {
+                            taskDraftTitle = ""
+                            taskDraftNotes = ""
+                            taskDraftPriority = "normal"
+                            taskDraftIsDaily = selectedFilter == .daily
+                            showingTaskEditor = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.headline.weight(.bold))
+                                .frame(width: 42, height: 42)
+                                .background(Color.indigo, in: RoundedRectangle(cornerRadius: 13))
+                                .foregroundStyle(.white)
+                        }
+                        .accessibilityLabel(selectedFilter == .daily ? "Thêm công việc hằng ngày" : "Tạo công việc")
                         themeButton
                         Button {
                             Task { await store.signOut() }
@@ -178,7 +200,7 @@ struct ContentView: View {
                     } else {
                         LazyVStack(spacing: 11) {
                             ForEach(selectedTasks) { task in
-                                taskCard(task)
+                                taskCard(task, canToggle: selectedFilter != .daily)
                                     .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
                             }
                         }
@@ -255,18 +277,26 @@ struct ContentView: View {
         }
     }
 
-    private func taskCard(_ task: TaskItem) -> some View {
+    private func taskCard(_ task: TaskItem, canToggle: Bool) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Button {
-                Task { await store.toggle(task, completed: !task.isCompleted) }
-            } label: {
-                Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 25, weight: .medium))
-                    .foregroundStyle(task.isCompleted ? .green : .indigo)
-                    .contentTransition(.symbolEffect(.replace))
+            if canToggle {
+                Button {
+                    Task { await store.toggle(task, completed: !task.isCompleted) }
+                } label: {
+                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 25, weight: .medium))
+                        .foregroundStyle(task.isCompleted ? .green : .indigo)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(task.isCompleted ? "Bỏ hoàn thành \(task.title)" : "Đánh dấu hoàn thành \(task.title)")
+            } else {
+                Image(systemName: "repeat")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(.indigo)
+                    .frame(width: 25, height: 28)
+                    .accessibilityLabel("Công việc hằng ngày; đánh dấu hoàn thành tại mục Hôm nay")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(task.isCompleted ? "Bỏ hoàn thành \(task.title)" : "Đánh dấu hoàn thành \(task.title)")
 
             VStack(alignment: .leading, spacing: 7) {
                 Text(task.title)
@@ -356,21 +386,65 @@ struct ContentView: View {
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
     }
 
+    private var taskEditor: some View {
+        NavigationStack {
+            Form {
+                Section("Chi tiết công việc") {
+                    TextField("Tên công việc", text: $taskDraftTitle)
+                        .textInputAutocapitalization(.sentences)
+                    TextField("Ghi chú (không bắt buộc)", text: $taskDraftNotes, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+                Section("Thiết lập") {
+                    Picker("Mức ưu tiên", selection: $taskDraftPriority) {
+                        Text("Cao").tag("high")
+                        Text("Bình thường").tag("normal")
+                        Text("Thấp").tag("low")
+                    }
+                    if store.dailySchemaAvailable {
+                        Toggle("Lặp lại hằng ngày", isOn: $taskDraftIsDaily)
+                    } else {
+                        Text("Để tạo việc hằng ngày, cần chạy tệp supabase/daily_tasks_migration.sql trong Supabase SQL Editor.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle(taskDraftIsDaily ? "Công việc hằng ngày" : "Công việc mới")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Hủy") { showingTaskEditor = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lưu") {
+                        Task {
+                            let created = await store.createTask(
+                                title: taskDraftTitle,
+                                notes: taskDraftNotes,
+                                priority: taskDraftPriority,
+                                isDaily: taskDraftIsDaily
+                            )
+                            if created { showingTaskEditor = false }
+                        }
+                    }
+                    .disabled(
+                        taskDraftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        store.isLoading ||
+                        (!store.dailySchemaAvailable && taskDraftIsDaily)
+                    )
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
     private func logoMark(size: CGFloat) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.29, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(red: 0.10, green: 0.27, blue: 0.98), Color(red: 0.29, green: 0.20, blue: 0.91)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            RoundedRectangle(cornerRadius: size * 0.16, style: .continuous)
-                .stroke(.white, lineWidth: max(2, size * 0.075))
-                .padding(size * 0.22)
+            RoundedRectangle(cornerRadius: size * 0.25, style: .continuous)
+                .fill(Color(red: 0.208, green: 0.388, blue: 0.914))
             Image(systemName: "checkmark")
-                .font(.system(size: size * 0.39, weight: .heavy, design: .rounded))
+                .font(.system(size: size * 0.54, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
         }
         .frame(width: size, height: size)
