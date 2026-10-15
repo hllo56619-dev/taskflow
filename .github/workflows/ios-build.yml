@@ -82,6 +82,21 @@ jobs:
             "$RUNNER_TEMP/TaskFlowDevice/Build/Products/Debug-iphoneos/TaskFlow.app" \
             "$RUNNER_TEMP/TaskFlow-iOS-Device-Unsigned-App.zip"
 
+      - name: Package unsigned IPA for AltStore
+        run: |
+          mkdir -p "$RUNNER_TEMP/TaskFlowIPA/Payload"
+          ditto "$RUNNER_TEMP/TaskFlowDevice/Build/Products/Debug-iphoneos/TaskFlow.app" \
+            "$RUNNER_TEMP/TaskFlowIPA/Payload/TaskFlow.app"
+          (cd "$RUNNER_TEMP/TaskFlowIPA" && /usr/bin/zip -qry "$RUNNER_TEMP/TaskFlow-Unsigned.ipa" Payload)
+
+      - name: Upload IPA for AltStore
+        uses: actions/upload-artifact@v4
+        with:
+          name: TaskFlow-iOS-IPA-for-AltStore
+          path: ${{ runner.temp }}/TaskFlow-Unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload iOS build artifacts
         uses: actions/upload-artifact@v4
         with:
