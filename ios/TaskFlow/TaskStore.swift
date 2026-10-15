@@ -158,6 +158,46 @@ final class TaskStore: ObservableObject {
         }
     }
 
+    func createTask(title: String, notes: String, priority: String, isDaily: Bool) async -> Bool {
+        guard let session else {
+            alertMessage = "Hãy đăng nhập lại trước khi tạo công việc."
+            return false
+        }
+        let cleanedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedTitle.isEmpty else {
+            alertMessage = "Hãy nhập tên công việc."
+            return false
+        }
+        if isDaily && !dailySchemaAvailable {
+            alertMessage = "Cần cập nhật Supabase trước khi tạo công việc hằng ngày. Hãy chạy supabase/daily_tasks_migration.sql trong SQL Editor."
+            return false
+        }
+
+        var payload: [String: Any] = [
+            "user_id": session.userID,
+            "title": cleanedTitle,
+            "notes": notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            "priority": priority,
+            "is_completed": false
+        ]
+        if dailySchemaAvailable {
+            payload["is_daily"] = isDaily
+        }
+
+        isLoading = true
+        do {
+            let body = try JSONSerialization.data(withJSONObject: payload)
+            _ = try await send(path: "/rest/v1/tasks", method: "POST", body: body, preferMinimal: true)
+            isLoading = false
+            await loadTasks()
+            return true
+        } catch {
+            isLoading = false
+            alertMessage = error.localizedDescription
+            return false
+        }
+    }
+
     func toggle(_ task: TaskItem, completed: Bool) async {
         guard let session else { return }
         var payload: [String: Any] = [
