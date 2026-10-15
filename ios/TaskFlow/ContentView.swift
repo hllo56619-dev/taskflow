@@ -328,7 +328,7 @@ struct ContentView: View {
         if let due = task.dueLabel {
             Label(due, systemImage: "flag")
                 .font(.caption2.weight(.medium))
-                .foregroundStyle(task.dueDate ?? "" < Self.todayString() && !task.isCompleted ? .red : .secondary)
+                .foregroundStyle(isOverdue(task) ? Color.red : Color.secondary)
                 .padding(.horizontal, 8).padding(.vertical, 5)
                 .background(Color.primary.opacity(0.055), in: Capsule())
         }
@@ -405,6 +405,11 @@ struct ContentView: View {
         case .open: return "Một chút nghỉ ngơi cũng rất xứng đáng."
         case .done: return "Những việc bạn tích xong sẽ xuất hiện trong mục này."
         }
+    }
+
+    private func isOverdue(_ task: TaskItem) -> Bool {
+        guard let dueDate = task.dueDate else { return false }
+        return dueDate < Self.todayString() && !task.isCompleted
     }
 
     private static func todayString() -> String {
