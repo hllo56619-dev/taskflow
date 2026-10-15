@@ -54,15 +54,7 @@ struct ContentView: View {
                     .padding(.bottom, 4)
 
                     VStack(spacing: 10) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .fill(LinearGradient(colors: [.indigo, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .frame(width: 70, height: 70)
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 34, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                        .shadow(color: .indigo.opacity(0.25), radius: 18, y: 8)
+                        logoMark(size: 70)
                         Text("TaskFlow")
                             .font(.system(size: 34, weight: .bold, design: .rounded))
                         Text("Việc rõ ràng. Đầu óc nhẹ nhàng.")
@@ -147,6 +139,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     HStack(alignment: .top, spacing: 12) {
+                        logoMark(size: 44)
                         VStack(alignment: .leading, spacing: 5) {
                             Text("TASKFLOW")
                                 .font(.caption.weight(.bold))
@@ -361,6 +354,28 @@ struct ContentView: View {
         .padding(.vertical, 38)
         .padding(.horizontal, 22)
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func logoMark(size: CGFloat) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.29, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(red: 0.10, green: 0.27, blue: 0.98), Color(red: 0.29, green: 0.20, blue: 0.91)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            RoundedRectangle(cornerRadius: size * 0.16, style: .continuous)
+                .stroke(.white, lineWidth: max(2, size * 0.075))
+                .padding(size * 0.22)
+            Image(systemName: "checkmark")
+                .font(.system(size: size * 0.39, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: .indigo.opacity(isDarkMode ? 0.18 : 0.24), radius: size * 0.16, y: size * 0.09)
+        .accessibilityLabel("TaskFlow")
     }
 
     private var themeButton: some View {
