@@ -20,6 +20,8 @@ struct ContentView: View {
     @State private var taskDraftNotes = ""
     @State private var taskDraftPriority = "normal"
     @State private var taskDraftIsDaily = false
+    @State private var taskDraftRepeatEnabled = false
+    @State private var taskDraftRepeatTotal = 3
 
     var body: some View {
         Group {
@@ -154,6 +156,8 @@ struct ContentView: View {
                             taskDraftNotes = ""
                             taskDraftPriority = "normal"
                             taskDraftIsDaily = selectedFilter == .daily
+                            taskDraftRepeatEnabled = false
+                            taskDraftRepeatTotal = 3
                             showingTaskEditor = true
                         } label: {
                             Image(systemName: "plus")
@@ -318,6 +322,38 @@ struct ContentView: View {
                     .foregroundStyle(task.isCompleted ? .secondary : .primary)
                     .fixedSize(horizontal: false, vertical: true)
 
+                if task.repeatEnabled {
+                    HStack(spacing: 10) {
+                        Text("Còn \(task.repeatRemaining) / \(task.repeatTotal) lần")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(task.repeatRemaining == 0 ? .green : .indigo)
+                        Spacer(minLength: 0)
+                        Button {
+                            Task { await store.adjustRepeatCount(task, delta: -1) }
+                        } label: {
+                            Image(systemName: "minus")
+                                .font(.caption.weight(.bold))
+                                .frame(width: 30, height: 30)
+                                .background(Color(uiColor: .tertiarySystemGroupedBackground), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(task.repeatRemaining >= task.repeatTotal || store.isLoading)
+                        .accessibilityLabel("Tăng số lần còn lại")
+                        Button {
+                            Task { await store.adjustRepeatCount(task, delta: 1) }
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.caption.weight(.bold))
+                                .frame(width: 30, height: 30)
+                                .background(Color.indigo.opacity(0.12), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(task.repeatRemaining <= 0 || store.isLoading)
+                        .accessibilityLabel("Giảm số lần còn lại")
+                    }
+                    .padding(.top, 3)
+                }
+
                 if !task.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(task.notes)
                         .font(.subheadline)
@@ -416,10 +452,12 @@ struct ContentView: View {
                     }
                     if store.dailySchemaAvailable {
                         Toggle("Lặp lại hằng ngày", isOn: $taskDraftIsDaily)
-                    } else {
-                        Text("Để tạo việc hằng ngày, cần chạy tệp supabase/daily_tasks_migration.sql trong Supabase SQL Editor.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                    }
+                    if store.repeatSchemaAvailable {
+                        Toggle("Đếm số lần thực hiện", isOn: $taskDraftRepeatEnabled)
+                        if taskDraftRepeatEnabled {
+                            Stepper("Số lần cần làm: \(taskDraftRepeatTotal)", value: $taskDraftRepeatTotal, in: 1...999)
+                        }
                     }
                 }
             }
@@ -436,7 +474,9 @@ struct ContentView: View {
                                 title: taskDraftTitle,
                                 notes: taskDraftNotes,
                                 priority: taskDraftPriority,
-                                isDaily: taskDraftIsDaily
+                                isDaily: taskDraftIsDaily,
+                                repeatEnabled: taskDraftRepeatEnabled,
+                                repeatTotal: taskDraftRepeatTotal
                             )
                             if created { showingTaskEditor = false }
                         }
@@ -444,7 +484,8 @@ struct ContentView: View {
                     .disabled(
                         taskDraftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                         store.isLoading ||
-                        (!store.dailySchemaAvailable && taskDraftIsDaily)
+                        (!store.dailySchemaAvailable && taskDraftIsDaily) ||
+                        (!store.repeatSchemaAvailable && taskDraftRepeatEnabled)
                     )
                 }
             }
