@@ -136,6 +136,26 @@
     }
   }
 
+  function setRepeatSchemaAvailable(available) {
+    repeatSchemaAvailable = available;
+    const checkbox = $('#taskRepeatEnabled');
+    const count = $('#taskRepeatTotal');
+    const hint = $('#repeatOptionHint');
+    if (checkbox) {
+      checkbox.disabled = !available;
+      if (!available) checkbox.checked = false;
+    }
+    if (count) count.disabled = !available || !checkbox?.checked;
+    if (hint) hint.textContent = available
+      ? 'Nút + giảm số lần còn phải làm; nút − hoàn tác một lần.'
+      : 'Cần chạy supabase/repeat_tasks_migration.sql trong Supabase để bật tính năng này.';
+    if (available) repeatSchemaWarningShown = false;
+    else if (!repeatSchemaWarningShown) {
+      toast('Cần chạy supabase/repeat_tasks_migration.sql trong Supabase → SQL Editor trước khi dùng số lần thực hiện.', 'error');
+      repeatSchemaWarningShown = true;
+    }
+  }
+
   function todayString() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -360,9 +380,15 @@
       let taskResult = queriedTaskResult;
       if (taskResult.error && isMissingDailyColumns(taskResult.error)) {
         setDailySchemaAvailable(false);
+        setRepeatSchemaAvailable(false);
         taskResult = await client.from('tasks').select('id,user_id,title,notes,category_id,scheduled_date,due_date,priority,is_completed,completed_at,position,archived_at,created_at,updated_at').eq('user_id', currentUser.id).is('archived_at', null).order('position', { ascending: true }).order('created_at', { ascending: false });
+      } else if (taskResult.error && /repeat_enabled|repeat_total|repeat_remaining/i.test(String(taskResult.error.message || ''))) {
+        setDailySchemaAvailable(true);
+        setRepeatSchemaAvailable(false);
+        taskResult = await client.from('tasks').select('id,user_id,title,notes,category_id,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,position,archived_at,created_at,updated_at').eq('user_id', currentUser.id).is('archived_at', null).order('position', { ascending: true }).order('created_at', { ascending: false });
       } else if (!taskResult.error) {
         setDailySchemaAvailable(true);
+        setRepeatSchemaAvailable(true);
       }
       if (taskResult.error) throw taskResult.error;
       categories = categoryResult.data || [];
@@ -489,11 +515,13 @@
       user_id: currentUser.id
     };
     const existingTask = editingTaskId ? tasks.find((task) => task.id === editingTaskId) : null;
-    payload.repeat_enabled = $('#taskRepeatEnabled').checked;
-    payload.repeat_total = payload.repeat_enabled ? Math.max(1, Math.min(100000, Number.parseInt($('#taskRepeatTotal').value, 10) || 1)) : 1;
-    payload.repeat_remaining = existingTask && existingTask.repeat_enabled && payload.repeat_enabled
-      ? Math.min(Number(existingTask.repeat_remaining ?? existingTask.repeat_total ?? 1), payload.repeat_total)
-      : payload.repeat_total;
+    if (repeatSchemaAvailable) {
+      payload.repeat_enabled = $('#taskRepeatEnabled').checked;
+      payload.repeat_total = payload.repeat_enabled ? Math.max(1, Math.min(100000, Number.parseInt($('#taskRepeatTotal').value, 10) || 1)) : 1;
+      payload.repeat_remaining = existingTask && existingTask.repeat_enabled && payload.repeat_enabled
+        ? Math.min(Number(existingTask.repeat_remaining ?? existingTask.repeat_total ?? 1), payload.repeat_total)
+        : payload.repeat_total;
+    }
     if (dailySchemaAvailable) {
       payload.is_daily = $('#taskIsDaily').checked;
       if (existingTask && Boolean(existingTask.is_daily) !== payload.is_daily) {
