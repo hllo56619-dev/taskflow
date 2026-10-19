@@ -40,6 +40,8 @@ Nếu Terminal báo `git: command not found`, hãy dừng lại và nhắn mình
 
 **Nếu bạn đã có TaskFlow từ trước:** khi dùng tính năng *Công việc hằng ngày*, hãy mở `supabase/daily_tasks_migration.sql`, sao chép toàn bộ câu lệnh vào **Supabase → SQL Editor → New query**, rồi bấm **Run** một lần. Lệnh này bổ sung cột còn thiếu mà không xóa công việc hiện có.
 
+**Để bật tính năng số lần thực hiện:** mở `supabase/repeat_tasks_migration.sql`, sao chép toàn bộ SQL vào **Supabase → SQL Editor → New query** và bấm **Run** một lần. Khi tạo/sửa công việc, bật **Thực hiện nhiều lần** và nhập số lần cần làm. Nút **＋** trên công việc sẽ giảm số lần còn lại; nút **−** hoàn tác và tăng lại số lần. Khi còn 0 lần, công việc được đánh dấu hoàn thành.
+
 **Cảnh báo quan trọng:** tuyệt đối không dùng `service_role` key hay secret key trong web/app. Publishable/anon key được thiết kế để dùng phía client; RLS trong SQL mới là lớp hạn chế mỗi tài khoản chỉ truy cập dữ liệu của chính mình.
 
 ### Email xác nhận
