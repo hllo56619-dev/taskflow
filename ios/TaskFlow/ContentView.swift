@@ -453,11 +453,9 @@ struct ContentView: View {
                     if store.dailySchemaAvailable {
                         Toggle("Lặp lại hằng ngày", isOn: $taskDraftIsDaily)
                     }
-                    if store.repeatSchemaAvailable {
-                        Toggle("Đếm số lần thực hiện", isOn: $taskDraftRepeatEnabled)
-                        if taskDraftRepeatEnabled {
-                            Stepper("Số lần cần làm: \(taskDraftRepeatTotal)", value: $taskDraftRepeatTotal, in: 1...999)
-                        }
+                    Toggle("Đếm số lần thực hiện", isOn: $taskDraftRepeatEnabled)
+                    if taskDraftRepeatEnabled {
+                        Stepper("Số lần cần làm: \(taskDraftRepeatTotal)", value: $taskDraftRepeatTotal, in: 1...999)
                     }
                 }
             }
@@ -484,8 +482,7 @@ struct ContentView: View {
                     .disabled(
                         taskDraftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
                         store.isLoading ||
-                        (!store.dailySchemaAvailable && taskDraftIsDaily) ||
-                        (!store.repeatSchemaAvailable && taskDraftRepeatEnabled)
+                        (!store.dailySchemaAvailable && taskDraftIsDaily)
                     )
                 }
             }
