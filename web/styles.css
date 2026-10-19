@@ -201,3 +201,10 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{box-shadow:0 0 0
 
 /* Daily view is for reviewing/managing recurring tasks; completion happens from Today. */
 .task-daily-marker{display:grid;place-items:center;flex:0 0 19px;width:19px;height:19px;margin-top:2px;border-radius:6px;background:var(--blue-soft);color:var(--blue);font-size:16px;font-weight:800;line-height:1}
+
+
+/* Repeat-task remaining count controls */
+.repeat-counter { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.repeat-counter .meta-pill { gap: 4px; }
+.repeat-counter .icon-button { width: 30px; height: 30px; min-width: 30px; font-size: 18px; }
+.repeat-counter .icon-button:disabled { opacity: .4; cursor: not-allowed; }
