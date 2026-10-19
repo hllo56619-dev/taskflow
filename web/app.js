@@ -123,8 +123,7 @@
     const schemaNotice = $('#schemaNotice');
     if (schemaNotice) schemaNotice.classList.toggle('hidden', available);
     if (checkbox) {
-      checkbox.disabled = !available;
-      if (!available) checkbox.checked = false;
+      checkbox.disabled = false;
     }
     if (hint) hint.textContent = available
       ? 'Tự bỏ đánh dấu hoàn thành khi sang ngày mới.'
@@ -147,14 +146,8 @@
       if (!available) checkbox.checked = false;
     }
     if (count) count.disabled = !available || !checkbox?.checked;
-    if (hint) hint.textContent = available
-      ? 'Nút + giảm số lần còn phải làm; nút − hoàn tác một lần.'
-      : 'Cần chạy supabase/repeat_tasks_migration.sql trong Supabase để bật tính năng này.';
+    if (hint) hint.textContent = '';
     if (available) repeatSchemaWarningShown = false;
-    else if (!repeatSchemaWarningShown) {
-      toast('Cần chạy supabase/repeat_tasks_migration.sql trong Supabase → SQL Editor trước khi dùng số lần thực hiện.', 'error');
-      repeatSchemaWarningShown = true;
-    }
   }
 
   function todayString() {
@@ -516,6 +509,10 @@
       user_id: currentUser.id
     };
     const existingTask = editingTaskId ? tasks.find((task) => task.id === editingTaskId) : null;
+    if ($('#taskRepeatEnabled').checked && !repeatSchemaAvailable) {
+      toast('Tính năng số lần thực hiện chưa sẵn sàng. Vui lòng thử lại sau khi cập nhật hệ thống.', 'error');
+      return;
+    }
     if (repeatSchemaAvailable) {
       payload.repeat_enabled = $('#taskRepeatEnabled').checked;
       payload.repeat_total = payload.repeat_enabled ? Math.max(1, Math.min(100000, Number.parseInt($('#taskRepeatTotal').value, 10) || 1)) : 1;
