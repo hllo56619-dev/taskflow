@@ -25,6 +25,9 @@ struct TaskItem: Identifiable, Hashable {
     let isCompleted: Bool
     let isDaily: Bool
     let dailyCompletedOn: String?
+    let repeatEnabled: Bool
+    let repeatTotal: Int
+    let repeatRemaining: Int
     let createdAt: String?
 
     init(json: [String: Any]) {
@@ -43,8 +46,11 @@ struct TaskItem: Identifiable, Hashable {
         priority = json["priority"] as? String ?? "normal"
         isDaily = json["is_daily"] as? Bool ?? false
         dailyCompletedOn = json["daily_completed_on"] as? String
+        repeatEnabled = json["repeat_enabled"] as? Bool ?? false
+        repeatTotal = max(1, json["repeat_total"] as? Int ?? 1)
+        repeatRemaining = max(0, json["repeat_remaining"] as? Int ?? repeatTotal)
         let completed = json["is_completed"] as? Bool ?? false
-        isCompleted = isDaily ? (dailyCompletedOn == Self.todayString()) : completed
+        isCompleted = repeatEnabled ? (repeatRemaining == 0) : (isDaily ? (dailyCompletedOn == Self.todayString()) : completed)
         createdAt = json["created_at"] as? String
     }
 
@@ -78,6 +84,7 @@ final class TaskStore: ObservableObject {
     @Published var isLoading = false
     @Published var alertMessage: String?
     @Published private(set) var dailySchemaAvailable = true
+    @Published private(set) var repeatSchemaAvailable = true
 
     private let sessionKey = "taskflow.ios.session"
     private var baseURL: String { TaskFlowConfig.supabaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")) }
@@ -126,7 +133,8 @@ final class TaskStore: ObservableObject {
         guard session != nil else { return }
         isLoading = true
         defer { isLoading = false }
-        let fields = "id,title,notes,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,position,archived_at,created_at,updated_at,categories(name)"
+        let fields = "id,title,notes,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,repeat_enabled,repeat_total,repeat_remaining,position,archived_at,created_at,updated_at,categories(name)"
+        let dailyFields = "id,title,notes,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,position,archived_at,created_at,updated_at,categories(name)"
         let legacyFields = "id,title,notes,scheduled_date,due_date,priority,is_completed,completed_at,position,archived_at,created_at,updated_at,categories(name)"
         let baseQuery = [
             URLQueryItem(name: "user_id", value: "eq.\(session?.userID ?? "")"),
@@ -136,20 +144,27 @@ final class TaskStore: ObservableObject {
         do {
             let data: Data
             do {
-                data = try await send(
-                    path: "/rest/v1/tasks",
-                    query: [URLQueryItem(name: "select", value: fields)] + baseQuery,
-                    method: "GET"
-                )
+                data = try await send(path: "/rest/v1/tasks", query: [URLQueryItem(name: "select", value: fields)] + baseQuery, method: "GET")
                 dailySchemaAvailable = true
+                repeatSchemaAvailable = true
             } catch {
-                guard Self.isMissingDailyColumns(error) else { throw error }
-                dailySchemaAvailable = false
-                data = try await send(
-                    path: "/rest/v1/tasks",
-                    query: [URLQueryItem(name: "select", value: legacyFields)] + baseQuery,
-                    method: "GET"
-                )
+                if Self.isMissingRepeatColumns(error) {
+                    repeatSchemaAvailable = false
+                    do {
+                        data = try await send(path: "/rest/v1/tasks", query: [URLQueryItem(name: "select", value: dailyFields)] + baseQuery, method: "GET")
+                        dailySchemaAvailable = true
+                    } catch {
+                        guard Self.isMissingDailyColumns(error) else { throw error }
+                        dailySchemaAvailable = false
+                        data = try await send(path: "/rest/v1/tasks", query: [URLQueryItem(name: "select", value: legacyFields)] + baseQuery, method: "GET")
+                    }
+                } else if Self.isMissingDailyColumns(error) {
+                    dailySchemaAvailable = false
+                    repeatSchemaAvailable = false
+                    data = try await send(path: "/rest/v1/tasks", query: [URLQueryItem(name: "select", value: legacyFields)] + baseQuery, method: "GET")
+                } else {
+                    throw error
+                }
             }
             let objects = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
             tasks = objects.map { TaskItem(json: $0) }
@@ -158,7 +173,7 @@ final class TaskStore: ObservableObject {
         }
     }
 
-    func createTask(title: String, notes: String, priority: String, isDaily: Bool) async -> Bool {
+    func createTask(title: String, notes: String, priority: String, isDaily: Bool, repeatEnabled: Bool, repeatTotal: Int) async -> Bool {
         guard let session else {
             alertMessage = "Hãy đăng nhập lại trước khi tạo công việc."
             return false
@@ -169,7 +184,11 @@ final class TaskStore: ObservableObject {
             return false
         }
         if isDaily && !dailySchemaAvailable {
-            alertMessage = "Cần cập nhật Supabase trước khi tạo công việc hằng ngày. Hãy chạy supabase/daily_tasks_migration.sql trong SQL Editor."
+            alertMessage = "Cần chạy supabase/daily_tasks_migration.sql trong Supabase SQL Editor trước khi tạo việc hằng ngày."
+            return false
+        }
+        if repeatEnabled && !repeatSchemaAvailable {
+            alertMessage = "Cần chạy supabase/repeat_tasks_migration.sql trong Supabase SQL Editor trước khi dùng bộ đếm."
             return false
         }
 
@@ -182,6 +201,11 @@ final class TaskStore: ObservableObject {
         ]
         if dailySchemaAvailable {
             payload["is_daily"] = isDaily
+        }
+        if repeatSchemaAvailable {
+            payload["repeat_enabled"] = repeatEnabled
+            payload["repeat_total"] = max(1, repeatTotal)
+            payload["repeat_remaining"] = max(1, repeatTotal)
         }
 
         isLoading = true
@@ -217,6 +241,32 @@ final class TaskStore: ObservableObject {
                 ],
                 method: "PATCH",
                 body: data,
+                preferMinimal: true
+            )
+            await loadTasks()
+        } catch {
+            alertMessage = error.localizedDescription
+        }
+    }
+
+    func adjustRepeatCount(_ task: TaskItem, delta: Int) async {
+        guard let session, task.repeatEnabled, repeatSchemaAvailable else { return }
+        let next = min(task.repeatTotal, max(0, task.repeatRemaining - delta))
+        let payload: [String: Any] = [
+            "repeat_remaining": next,
+            "is_completed": next == 0,
+            "completed_at": next == 0 ? ISO8601DateFormatter().string(from: Date()) : NSNull()
+        ]
+        do {
+            let body = try JSONSerialization.data(withJSONObject: payload)
+            _ = try await send(
+                path: "/rest/v1/tasks",
+                query: [
+                    URLQueryItem(name: "id", value: "eq.\(task.id)"),
+                    URLQueryItem(name: "user_id", value: "eq.\(session.userID)")
+                ],
+                method: "PATCH",
+                body: body,
                 preferMinimal: true
             )
             await loadTasks()
@@ -312,6 +362,12 @@ final class TaskStore: ObservableObject {
         guard let userID else { throw TaskFlowError.message("Không xác định được tài khoản Supabase.") }
         let userEmail = user?["email"] as? String ?? fallbackEmail
         return TaskSession(accessToken: accessToken, refreshToken: refreshToken, userID: userID, email: userEmail)
+    }
+
+    private static func isMissingRepeatColumns(_ error: Error) -> Bool {
+        let text = error.localizedDescription.lowercased()
+        return (text.contains("repeat_enabled") || text.contains("repeat_total") || text.contains("repeat_remaining")) &&
+            (text.contains("does not exist") || text.contains("could not find") || text.contains("schema cache") || text.contains("42703") || text.contains("pgrst204"))
     }
 
     private static func isMissingDailyColumns(_ error: Error) -> Bool {
