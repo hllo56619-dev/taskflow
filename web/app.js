@@ -509,10 +509,7 @@
       user_id: currentUser.id
     };
     const existingTask = editingTaskId ? tasks.find((task) => task.id === editingTaskId) : null;
-    if ($('#taskRepeatEnabled').checked && !repeatSchemaAvailable) {
-      toast('Tính năng số lần thực hiện chưa sẵn sàng. Vui lòng thử lại sau khi cập nhật hệ thống.', 'error');
-      return;
-    }
+    if ($('#taskRepeatEnabled').checked && !repeatSchemaAvailable) return;
     if (repeatSchemaAvailable) {
       payload.repeat_enabled = $('#taskRepeatEnabled').checked;
       payload.repeat_total = payload.repeat_enabled ? Math.max(1, Math.min(100000, Number.parseInt($('#taskRepeatTotal').value, 10) || 1)) : 1;
