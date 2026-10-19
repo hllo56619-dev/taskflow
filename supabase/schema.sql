@@ -25,6 +25,9 @@ create table if not exists public.tasks (
   is_completed boolean not null default false,
   is_daily boolean not null default false,
   daily_completed_on date,
+  repeat_enabled boolean not null default false,
+  repeat_total integer not null default 1 check (repeat_total >= 1),
+  repeat_remaining integer not null default 1 check (repeat_remaining >= 0),
   completed_at timestamptz,
   position double precision not null default 0,
   archived_at timestamptz,
@@ -35,7 +38,10 @@ create table if not exists public.tasks (
 -- Keep existing installations compatible when this schema is re-run.
 alter table public.tasks
   add column if not exists is_daily boolean not null default false,
-  add column if not exists daily_completed_on date;
+  add column if not exists daily_completed_on date,
+  add column if not exists repeat_enabled boolean not null default false,
+  add column if not exists repeat_total integer not null default 1,
+  add column if not exists repeat_remaining integer not null default 1;
 
 notify pgrst, 'reload schema';
 
