@@ -67,6 +67,7 @@
   let dailySchemaAvailable = false;
   let dailySchemaWarningShown = false;
   let repeatSchemaAvailable = false;
+  let repeatSchemaWarningShown = false;
 
   const viewNames = {
     today: 'Hôm nay', daily: 'Công việc hằng ngày', upcoming: 'Sắp tới',
