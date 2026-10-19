@@ -66,6 +66,7 @@
   let loadInProgress = false;
   let dailySchemaAvailable = false;
   let dailySchemaWarningShown = false;
+  let repeatSchemaAvailable = false;
 
   const viewNames = {
     today: 'Hôm nay', daily: 'Công việc hằng ngày', upcoming: 'Sắp tới',
@@ -257,6 +258,7 @@
         dateBits.push(`<span class="${klass}">▦ ${prefix} ${escapeHtml(formatDate(task.due_date))}</span>`);
       }
       const notes = task.notes ? `<div class="task-notes">${escapeHtml(task.notes)}</div>` : '';
+      const repeatBit = task.repeat_enabled ? `<div class="repeat-counter"><span class="meta-pill">Còn <strong>${Number(task.repeat_remaining || 0)}</strong>/${Number(task.repeat_total || 0)} lần</span><button class="icon-button repeat-action" data-repeat-delta="1" data-repeat-task="${escapeHtml(task.id)}" title="Đã thực hiện 1 lần" aria-label="Giảm số lần còn phải làm" ${Number(task.repeat_remaining || 0) <= 0 ? 'disabled' : ''}>＋</button><button class="icon-button repeat-action" data-repeat-delta="-1" data-repeat-task="${escapeHtml(task.id)}" title="Hoàn tác một lần" aria-label="Tăng số lần còn phải làm">−</button></div>` : '';
       const categoryBit = category ? `<span class="meta-pill category-pill"><span class="category-dot" style="background:${escapeHtml(category.color)}"></span>${escapeHtml(category.name)}</span>` : '';
       const canToggleTask = currentView === 'today' || !task.is_daily;
       const completionControl = canToggleTask && currentView !== 'daily'
@@ -264,7 +266,7 @@
         : '<span class="task-daily-marker" title="Công việc hằng ngày — tích hoàn thành tại Hôm nay" aria-label="Công việc hằng ngày — tích hoàn thành tại Hôm nay">↻</span>';
       return `<article class="task-row${task.is_completed ? ' completed' : ''}" data-task-row="${escapeHtml(task.id)}">
         ${completionControl}
-        <div class="task-main"><div class="task-title">${escapeHtml(task.title)}</div>${notes}<div class="task-meta">${categoryBit}${dateBits.join('')}<span class="meta-pill"><span class="priority-dot ${escapeHtml(task.priority)}"></span>${priorityLabel}</span></div></div>
+        <div class="task-main"><div class="task-title">${escapeHtml(task.title)}</div>${notes}<div class="task-meta">${categoryBit}${dateBits.join('')}<span class="meta-pill"><span class="priority-dot ${escapeHtml(task.priority)}"></span>${priorityLabel}</span></div>${repeatBit}</div>
         <div class="task-actions"><button class="icon-button edit-action" data-edit-task="${escapeHtml(task.id)}" title="Sửa công việc" aria-label="Sửa công việc">✎</button><button class="icon-button" data-delete-task="${escapeHtml(task.id)}" title="Xóa công việc" aria-label="Xóa công việc">×</button></div>
       </article>`;
     }).join('');
@@ -352,7 +354,7 @@
     try {
       const [categoryResult, queriedTaskResult] = await Promise.all([
         client.from('categories').select('*').eq('user_id', currentUser.id).order('position').order('name'),
-        client.from('tasks').select('id,user_id,title,notes,category_id,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,position,archived_at,created_at,updated_at').eq('user_id', currentUser.id).is('archived_at', null).order('position', { ascending: true }).order('created_at', { ascending: false })
+        client.from('tasks').select('id,user_id,title,notes,category_id,scheduled_date,due_date,priority,is_completed,completed_at,is_daily,daily_completed_on,repeat_enabled,repeat_total,repeat_remaining,position,archived_at,created_at,updated_at').eq('user_id', currentUser.id).is('archived_at', null).order('position', { ascending: true }).order('created_at', { ascending: false })
       ]);
       if (categoryResult.error) throw categoryResult.error;
       let taskResult = queriedTaskResult;
@@ -368,6 +370,9 @@
         ...task,
         is_daily: dailySchemaAvailable ? Boolean(task.is_daily) : false,
         daily_completed_on: dailySchemaAvailable ? task.daily_completed_on : null,
+        repeat_enabled: Boolean(task.repeat_enabled),
+        repeat_total: Number(task.repeat_total || 1),
+        repeat_remaining: Number(task.repeat_remaining ?? task.repeat_total ?? 1),
         is_completed: dailySchemaAvailable && task.is_daily
           ? task.daily_completed_on === todayString()
           : task.is_completed
@@ -461,6 +466,9 @@
     $('#taskPriority').value = task?.priority || 'normal';
     $('#taskScheduledDate').value = task?.scheduled_date || (currentView === 'today' ? todayString() : '');
     $('#taskIsDaily').checked = task ? Boolean(task.is_daily) : currentView === 'daily';
+    $('#taskRepeatEnabled').checked = task ? Boolean(task.repeat_enabled) : false;
+    $('#taskRepeatTotal').value = task ? Math.max(1, Number(task.repeat_total || 1)) : 1;
+    $('#taskRepeatTotal').disabled = !$('#taskRepeatEnabled').checked;
     $('#taskDueDate').value = task?.due_date || '';
     $('#saveTaskBtn').textContent = task ? 'Lưu thay đổi' : 'Lưu công việc';
     $('#taskDialog').showModal();
@@ -481,6 +489,11 @@
       user_id: currentUser.id
     };
     const existingTask = editingTaskId ? tasks.find((task) => task.id === editingTaskId) : null;
+    payload.repeat_enabled = $('#taskRepeatEnabled').checked;
+    payload.repeat_total = payload.repeat_enabled ? Math.max(1, Math.min(100000, Number.parseInt($('#taskRepeatTotal').value, 10) || 1)) : 1;
+    payload.repeat_remaining = existingTask && existingTask.repeat_enabled && payload.repeat_enabled
+      ? Math.min(Number(existingTask.repeat_remaining ?? existingTask.repeat_total ?? 1), payload.repeat_total)
+      : payload.repeat_total;
     if (dailySchemaAvailable) {
       payload.is_daily = $('#taskIsDaily').checked;
       if (existingTask && Boolean(existingTask.is_daily) !== payload.is_daily) {
@@ -523,6 +536,25 @@
     } catch (error) {
       toast(error.message || 'Không cập nhật được trạng thái.', 'error');
       if (box) { box.checked = !checked; box.disabled = false; }
+    }
+  }
+
+  async function adjustRepeatCount(taskId, delta, button) {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task || !task.repeat_enabled) return;
+    const nextRemaining = Math.max(0, Number(task.repeat_remaining ?? task.repeat_total ?? 1) - delta);
+    if (nextRemaining === Number(task.repeat_remaining ?? task.repeat_total ?? 1)) return;
+    const row = button.closest('[data-task-row]');
+    if (row) row.querySelectorAll('[data-repeat-task]').forEach((control) => { control.disabled = true; });
+    try {
+      const finished = nextRemaining === 0;
+      const { error } = await client.from('tasks').update({ repeat_remaining: nextRemaining, is_completed: finished, completed_at: finished ? (task.completed_at || new Date().toISOString()) : null }).eq('id', taskId).eq('user_id', currentUser.id);
+      if (error) throw error;
+      toast(delta === 1 ? (finished ? 'Đã hoàn thành đủ số lần!' : 'Đã ghi nhận một lần thực hiện.') : 'Đã hoàn tác một lần thực hiện.', 'success');
+      await loadAll({ silent: true });
+    } catch (error) {
+      toast(error.message || 'Không cập nhật được số lần thực hiện.', 'error');
+      if (row) row.querySelectorAll('[data-repeat-task]').forEach((control) => { control.disabled = false; });
     }
   }
 
@@ -640,7 +672,10 @@
       const checkbox = event.target.closest('[data-toggle-task]');
       if (checkbox) toggleTask(checkbox.dataset.toggleTask, checkbox.checked);
     });
+    $('#taskRepeatEnabled').addEventListener('change', () => { $('#taskRepeatTotal').disabled = !$('#taskRepeatEnabled').checked; });
     $('#taskList').addEventListener('click', (event) => {
+      const repeatButton = event.target.closest('[data-repeat-task]');
+      if (repeatButton) { adjustRepeatCount(repeatButton.dataset.repeatTask, Number(repeatButton.dataset.repeatDelta), repeatButton); return; }
       const edit = event.target.closest('[data-edit-task]');
       if (edit) { const task = tasks.find((item) => item.id === edit.dataset.editTask); if (task) openTaskDialog(task); return; }
       const del = event.target.closest('[data-delete-task]');
