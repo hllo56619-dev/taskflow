@@ -82,7 +82,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-of
   const setDate = () => { $('#todayDate').textContent = new Intl.DateTimeFormat('vi-VN',{weekday:'long',day:'numeric',month:'long'}).format(new Date()); };
   function showApp(){ $('#authScreen').classList.add('hidden'); $('#app').classList.remove('hidden'); setDate(); }
   function showAuth(){ $('#app').classList.add('hidden'); $('#authScreen').classList.remove('hidden'); }
-  function activeTasks(){ return tasks.filter(t => !t.archived_at && !(t.is_daily ? t.daily_completed_on === today() : t.is_completed)); }
+  function activeTasks(){ return tasks.filter(t => !t.archived_at && (t.repeat_enabled || !(t.is_daily ? t.daily_completed_on === today() : t.is_completed))); }
   function render(){
     const visible = activeTasks().sort((a,b) => Number(a.position||0)-Number(b.position||0) || String(a.created_at||'').localeCompare(String(b.created_at||'')));
     $('#taskList').innerHTML = visible.map(t => {
