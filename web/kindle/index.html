@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#f7f4eb">
+<meta name="description" content="TaskFlow — tờ giấy công việc tối giản dành cho Kindle.">
+<title>TaskFlow · Tờ giấy</title>
+<style>
+:root{color-scheme:light;--paper:#f7f4eb;--ink:#25251f;--muted:#77746b;--line:#d8d2c4;--soft:#eeeadf}
+*{box-sizing:border-box}
+html{min-height:100%;background:var(--paper)}
+body{margin:0;min-height:100vh;color:var(--ink);background-color:var(--paper);background-image:repeating-linear-gradient(0deg,rgba(90,78,54,.025) 0,rgba(90,78,54,.025) 1px,transparent 1px,transparent 4px);font-family:Georgia,"Times New Roman",serif;font-size:19px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input{font:inherit}
+button{color:inherit;touch-action:manipulation}
+.page{width:min(100%,700px);margin:0 auto;padding:28px 24px 36px}
+.paper-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:15px;margin-bottom:10px}
+h1{font-size:28px;font-weight:normal;letter-spacing:.01em;margin:0 0 2px}
+.date{font-size:15px;color:var(--muted)}
+.tools{display:flex;gap:8px;align-items:center}
+.quiet-button{border:1px solid var(--line);background:transparent;border-radius:50%;width:42px;height:42px;font-family:Arial,sans-serif;font-size:22px;line-height:1}
+.section-note{font-size:14px;color:var(--muted);margin:10px 0 12px}
+#taskList{margin:0;padding:0;list-style:none}
+.task{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start;padding:13px 0;border-bottom:1px solid var(--line);min-height:58px}
+.task-check{appearance:none;-webkit-appearance:none;width:27px;height:27px;border:1.7px solid var(--ink);border-radius:50%;background:transparent;margin:3px 0 0;display:grid;place-items:center;cursor:pointer}
+.task-check:checked{background:var(--ink)}
+.task-check:checked:after{content:"✓";font-family:Arial,sans-serif;font-size:17px;color:var(--paper);line-height:1}
+.task-title{overflow-wrap:anywhere;white-space:pre-wrap}
+.task.done .task-title{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+.repeat-line{display:flex;align-items:center;gap:9px;margin-top:6px;font:15px/1.3 Arial,sans-serif;color:var(--muted)}
+.repeat-value{min-width:48px;text-align:center;font-variant-numeric:tabular-nums}
+.repeat-button{min-width:42px;height:38px;padding:0 8px;border:1px solid var(--line);background:transparent;border-radius:4px;font:22px/1 Arial,sans-serif}
+.repeat-button:disabled,.quiet-button:disabled{opacity:.35}
+.empty{padding:26px 0;color:var(--muted);font-style:italic}
+.status{font:13px/1.4 Arial,sans-serif;color:var(--muted);margin-top:18px;min-height:18px}
+.auth{max-width:380px;margin:14vh auto 0;padding:0 24px}
+.auth h1{margin-bottom:6px}
+.auth p{font-size:16px;color:var(--muted);margin:0 0 24px}
+.auth label{display:block;font-size:16px;margin:15px 0 6px}
+.auth input{width:100%;padding:12px 10px;border:1px solid var(--line);border-radius:3px;background:rgba(255,255,255,.35);color:var(--ink);font-family:Arial,sans-serif;font-size:16px}
+.primary{width:100%;margin-top:20px;padding:12px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:3px;font-size:17px}
+.link{border:0;background:none;text-decoration:underline;text-underline-offset:3px;color:var(--muted);font-size:14px;padding:8px 0}
+.hidden{display:none!important}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+@media(max-width:420px){.page{padding:20px 17px 28px}h1{font-size:25px}.task{gap:9px;grid-template-columns:32px minmax(0,1fr)}body{font-size:18px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../config.js"></script>
+</head>
+<body>
+<section id="authScreen" class="auth">
+  <h1>TaskFlow</h1><p>Một tờ giấy nhỏ cho những việc cần làm.</p>
+  <form id="authForm">
+    <label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
+    <label for="password">Mật khẩu</label><input id="password" type="password" autocomplete="current-password" required>
+    <button class="primary" id="loginButton" type="submit">Mở tờ giấy</button>
+  </form>
+  <div id="authStatus" class="status" role="status"></div>
+</section>
+<main id="app" class="page hidden">
+  <header class="paper-head">
+    <div><h1>Việc cần làm</h1><div id="todayDate" class="date"></div></div>
+    <div class="tools"><button id="refresh" class="quiet-button" type="button" aria-label="Làm mới danh sách" title="Làm mới">↻</button></div>
+  </header>
+  <p class="section-note" id="summary">Những việc còn lại.</p>
+  <ul id="taskList" aria-label="Danh sách công việc"></ul>
+  <div id="empty" class="empty hidden">Tờ giấy đang trống. Thế cũng tốt.</div>
+  <div id="status" class="status" role="status" aria-live="polite">Đang mở tờ giấy…</div>
+  <button id="logout" class="link" type="button">Đăng xuất</button>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const config = window.TASKFLOW_CONFIG || {};
+  let client = null, user = null, tasks = [], channel = null, busy = new Set();
+  const today = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const status = (msg) => { $('#status').textContent = msg; };
+  const authStatus = (msg) => { $('#authStatus').textContent = msg; };
+  const setDate = () => { $('#todayDate').textContent = new Intl.DateTimeFormat('vi-VN',{weekday:'long',day:'numeric',month:'long'}).format(new Date()); };
+  function showApp(){ $('#authScreen').classList.add('hidden'); $('#app').classList.remove('hidden'); setDate(); }
+  function showAuth(){ $('#app').classList.add('hidden'); $('#authScreen').classList.remove('hidden'); }
+  function activeTasks(){ return tasks.filter(t => !t.archived_at && !(t.is_daily ? t.daily_completed_on === today() : t.is_completed)); }
+  function render(){
+    const visible = activeTasks().sort((a,b) => Number(a.position||0)-Number(b.position||0) || String(a.created_at||'').localeCompare(String(b.created_at||'')));
+    $('#taskList').innerHTML = visible.map(t => {
+      const repeat = Boolean(t.repeat_enabled);
+      const remain = Number(t.repeat_remaining ?? t.repeat_total ?? 1);
+      const control = repeat
+        ? '<div class="repeat-line"><button class="repeat-button" type="button" data-repeat="-1" data-id="'+esc(t.id)+'" aria-label="Hoàn tác một lần">−</button><span class="repeat-value">'+remain+' / '+Number(t.repeat_total||1)+' lần</span><button class="repeat-button" type="button" data-repeat="1" data-id="'+esc(t.id)+'" aria-label="Ghi nhận một lần" '+(remain<=0?'disabled':'')+'>+</button></div>'
+        : '';
+      const dailyDone = t.is_daily && t.daily_completed_on === today();
+      return '<li class="task'+(t.is_completed||dailyDone?' done':'')+'" data-row="'+esc(t.id)+'">'+
+        '<input class="task-check" type="checkbox" data-check="'+esc(t.id)+'" aria-label="Đánh dấu hoàn thành: '+esc(t.title)+'" '+((t.is_completed||dailyDone)?'checked':'')+'>'+
+        '<div><div class="task-title">'+esc(t.title)+'</div>'+control+'</div></li>';
+    }).join('');
+    $('#empty').classList.toggle('hidden',visible.length!==0);
+    $('#taskList').classList.toggle('hidden',visible.length===0);
+    $('#summary').textContent = visible.length ? visible.length+' việc còn lại' : 'Không còn việc nào đang chờ.';
+  }
+  async function load(silent=false){
+    if(!user) return;
+    status('Đang đồng bộ…');
+    const {data,error} = await client.from('tasks').select('id,user_id,title,scheduled_date,due_date,is_completed,completed_at,is_daily,daily_completed_on,repeat_enabled,repeat_total,repeat_remaining,position,archived_at,created_at').eq('user_id',user.id).is('archived_at',null).order('position',{ascending:true}).order('created_at',{ascending:true});
+    if(error){
+      if(!silent) status('Chưa tải được việc. Kiểm tra kết nối rồi chạm ↻ để thử lại.');
+      console.error(error); return;
+    }
+    tasks = (data||[]).map(t=>({...t,repeat_enabled:Boolean(t.repeat_enabled),repeat_total:Number(t.repeat_total||1),repeat_remaining:Number(t.repeat_remaining??t.repeat_total??1)}));
+    render(); status('Đã đồng bộ với TaskFlow');
+  }
+  async function signIn(){
+    if(!config.supabaseUrl || !config.supabaseAnonKey || !window.supabase?.createClient){
+      authStatus('Chưa cấu hình được Supabase. Kiểm tra web/config.js.'); return;
+    }
+    client = window.supabase.createClient(config.supabaseUrl,config.supabaseAnonKey,{auth:{storage:window.localStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    const {data,error}=await client.auth.getSession();
+    if(error) console.warn(error.message);
+    if(data?.session?.user){ await enter(data.session.user); }
+  }
+  async function enter(nextUser){
+    user=nextUser; showApp(); await load();
+    if(channel) await client.removeChannel(channel);
+    channel=client.channel('taskflow-kindle-'+user.id)
+      .on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:'user_id=eq.'+user.id},()=>load(true))
+      .subscribe();
+  }
+  async function updateTask(id,patch,row){
+    if(busy.has(id)) return;
+    busy.add(id);
+    if(row) row.querySelectorAll('button,input').forEach(el=>el.disabled=true);
+    const {error}=await client.from('tasks').update(patch).eq('id',id).eq('user_id',user.id);
+    busy.delete(id);
+    if(error){ status('Chưa lưu được thay đổi. Chạm ↻ để đồng bộ lại.'); console.error(error); await load(true); return; }
+    await load(true);
+  }
+  $('#authForm').addEventListener('submit',async e=>{
+    e.preventDefault(); $('#loginButton').disabled=true; $('#loginButton').textContent='Đang mở…';
+    try{
+      if(!config.supabaseUrl || !config.supabaseAnonKey || !window.supabase?.createClient) throw new Error('Chưa cấu hình Supabase trong web/config.js.');
+      if(!client) client=window.supabase.createClient(config.supabaseUrl,config.supabaseAnonKey,{auth:{storage:window.localStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+      const {data,error}=await client.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});
+      if(error) throw error;
+      await enter(data.user); authStatus('');
+    }catch(err){ authStatus(err.message||'Không đăng nhập được.'); }
+    finally{$('#loginButton').disabled=false;$('#loginButton').textContent='Mở tờ giấy';}
+  });
+  $('#taskList').addEventListener('change',async e=>{
+    const input=e.target.closest('[data-check]'); if(!input||!user)return;
+    const task=tasks.find(t=>t.id===input.dataset.check); if(!task)return;
+    const checked=input.checked;
+    const patch=task.is_daily
+      ? {daily_completed_on:checked?today():null,is_completed:checked,completed_at:checked?new Date().toISOString():null}
+      : {is_completed:checked,completed_at:checked?new Date().toISOString():null};
+    await updateTask(task.id,patch,input.closest('[data-row]'));
+  });
+  $('#taskList').addEventListener('click',async e=>{
+    const button=e.target.closest('[data-repeat]'); if(!button||!user)return;
+    const task=tasks.find(t=>t.id===button.dataset.id); if(!task||!task.repeat_enabled)return;
+    const delta=Number(button.dataset.repeat);
+    const remaining=Number(task.repeat_remaining??task.repeat_total??1);
+    const next=Math.max(0,remaining-delta);
+    if(next===remaining)return;
+    const finished=next===0;
+    await updateTask(task.id,{repeat_remaining:next,is_completed:finished,completed_at:finished?(task.completed_at||new Date().toISOString()):null},button.closest('[data-row]'));
+  });
+  $('#refresh').addEventListener('click',()=>load());
+  $('#logout').addEventListener('click',async()=>{
+    if(channel) await client.removeChannel(channel); channel=null;
+    await client.auth.signOut(); user=null; tasks=[]; showAuth(); authStatus('Đã đăng xuất.');
+  });
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&user)load(true);});
+  window.addEventListener('online',()=>{if(user)load(true);});
+  signIn();
+})();
+</script>
+</body>
+</html>
