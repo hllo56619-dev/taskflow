@@ -21,13 +21,13 @@ h1{font-size:28px;font-weight:normal;letter-spacing:.01em;margin:0 0 2px}
 .quiet-button{border:1px solid var(--line);background:transparent;border-radius:50%;width:42px;height:42px;font-family:Arial,sans-serif;font-size:22px;line-height:1}
 .section-note{font-size:14px;color:var(--muted);margin:10px 0 12px}
 #taskList{margin:0;padding:0;list-style:none}
-.task{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start;padding:13px 0;border-bottom:1px solid var(--line);min-height:58px}
+.task{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:start;padding:13px 0;border-bottom:1px solid var(--line);min-height:58px}.task.repeat-task{grid-template-columns:82px minmax(0,1fr)}
 .task-check{appearance:none;-webkit-appearance:none;width:27px;height:27px;border:1.7px solid var(--ink);border-radius:50%;background:transparent;margin:3px 0 0;display:grid;place-items:center;cursor:pointer}
 .task-check:checked{background:var(--ink)}
 .task-check:checked:after{content:"✓";font-family:Arial,sans-serif;font-size:17px;color:var(--paper);line-height:1}
 .task-title{overflow-wrap:anywhere;white-space:pre-wrap}
 .task.done .task-title{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
-.repeat-line{display:flex;align-items:center;gap:9px;margin-top:6px;font:15px/1.3 Arial,sans-serif;color:var(--muted)}
+.repeat-line{display:flex;align-items:center;gap:7px;margin-top:6px;font:14px/1.3 Arial,sans-serif;color:var(--muted)}.repeat-controls{display:flex;gap:5px;align-items:flex-start}.repeat-controls .repeat-button{width:36px;min-width:36px;height:38px;padding:0}.repeat-value{font:14px/1.4 Arial,sans-serif;color:var(--muted);margin-top:5px}
 .repeat-value{min-width:48px;text-align:center;font-variant-numeric:tabular-nums}
 .repeat-button{min-width:42px;height:38px;padding:0 8px;border:1px solid var(--line);background:transparent;border-radius:4px;font:22px/1 Arial,sans-serif}
 .repeat-button:disabled,.quiet-button:disabled{opacity:.35}
@@ -42,7 +42,7 @@ h1{font-size:28px;font-weight:normal;letter-spacing:.01em;margin:0 0 2px}
 .link{border:0;background:none;text-decoration:underline;text-underline-offset:3px;color:var(--muted);font-size:14px;padding:8px 0}
 .hidden{display:none!important}
 button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
-@media(max-width:420px){.page{padding:20px 17px 28px}h1{font-size:25px}.task{gap:9px;grid-template-columns:32px minmax(0,1fr)}body{font-size:18px}}
+@media(max-width:420px){.page{padding:20px 17px 28px}h1{font-size:25px}.task{gap:9px;grid-template-columns:32px minmax(0,1fr)}.task.repeat-task{grid-template-columns:78px minmax(0,1fr)}body{font-size:18px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -89,12 +89,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-of
       const repeat = Boolean(t.repeat_enabled);
       const remain = Number(t.repeat_remaining ?? t.repeat_total ?? 1);
       const control = repeat
-        ? '<div class="repeat-line"><button class="repeat-button" type="button" data-repeat="-1" data-id="'+esc(t.id)+'" aria-label="Hoàn tác một lần">−</button><span class="repeat-value">'+remain+' / '+Number(t.repeat_total||1)+' lần</span><button class="repeat-button" type="button" data-repeat="1" data-id="'+esc(t.id)+'" aria-label="Ghi nhận một lần" '+(remain<=0?'disabled':'')+'>+</button></div>'
-        : '';
+        ? '<div class="repeat-controls"><button class="repeat-button" type="button" data-repeat="1" data-id="'+esc(t.id)+'" aria-label="Ghi nhận một lần" '+(remain<=0?'disabled':'')+'>+</button><button class="repeat-button" type="button" data-repeat="-1" data-id="'+esc(t.id)+'" aria-label="Hoàn tác một lần">−</button></div>'
+        : '<input class="task-check" type="checkbox" data-check="'+esc(t.id)+'" aria-label="Đánh dấu hoàn thành: '+esc(t.title)+'" '+((t.is_completed||(t.is_daily&&t.daily_completed_on===today()))?'checked':'')+'>';
+      const counter = repeat ? '<div class="repeat-value">'+remain+' / '+Number(t.repeat_total||1)+' lần còn lại</div>' : '';
       const dailyDone = t.is_daily && t.daily_completed_on === today();
-      return '<li class="task'+(t.is_completed||dailyDone?' done':'')+'" data-row="'+esc(t.id)+'">'+
-        '<input class="task-check" type="checkbox" data-check="'+esc(t.id)+'" aria-label="Đánh dấu hoàn thành: '+esc(t.title)+'" '+((t.is_completed||dailyDone)?'checked':'')+'>'+
-        '<div><div class="task-title">'+esc(t.title)+'</div>'+control+'</div></li>';
+      return '<li class="task'+(repeat?' repeat-task':'')+((t.is_completed||dailyDone)?' done':'')+'" data-row="'+esc(t.id)+'">'+
+        control+
+        '<div><div class="task-title">'+esc(t.title)+'</div>'+counter+'</div></li>';
     }).join('');
     $('#empty').classList.toggle('hidden',visible.length!==0);
     $('#taskList').classList.toggle('hidden',visible.length===0);
