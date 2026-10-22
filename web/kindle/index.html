@@ -70,110 +70,235 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-of
   <button id="logout" class="link" type="button">Đăng xuất</button>
 </main>
 <script>
-(() => {
-  'use strict';
-  const $ = (s) => document.querySelector(s);
-  const config = window.TASKFLOW_CONFIG || {};
-  let client = null, user = null, tasks = [], channel = null, busy = new Set();
-  const today = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
-  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const status = (msg) => { $('#status').textContent = msg; };
-  const authStatus = (msg) => { $('#authStatus').textContent = msg; };
-  const setDate = () => { $('#todayDate').textContent = new Intl.DateTimeFormat('vi-VN',{weekday:'long',day:'numeric',month:'long'}).format(new Date()); };
-  function showApp(){ $('#authScreen').classList.add('hidden'); $('#app').classList.remove('hidden'); setDate(); }
-  function showAuth(){ $('#app').classList.add('hidden'); $('#authScreen').classList.remove('hidden'); }
-  function activeTasks(){ return tasks.filter(t => !t.archived_at && (t.repeat_enabled || !(t.is_daily ? t.daily_completed_on === today() : t.is_completed))); }
-  function render(){
-    const visible = activeTasks().sort((a,b) => Number(a.position||0)-Number(b.position||0) || String(a.created_at||'').localeCompare(String(b.created_at||'')));
-    $('#taskList').innerHTML = visible.map(t => {
-      const repeat = Boolean(t.repeat_enabled);
-      const remain = Number(t.repeat_remaining ?? t.repeat_total ?? 1);
-      const control = repeat
-        ? '<div class="repeat-controls"><button class="repeat-button" type="button" data-repeat="1" data-id="'+esc(t.id)+'" aria-label="Ghi nhận một lần" '+(remain<=0?'disabled':'')+'>+</button><button class="repeat-button" type="button" data-repeat="-1" data-id="'+esc(t.id)+'" aria-label="Hoàn tác một lần">−</button></div>'
-        : '<input class="task-check" type="checkbox" data-check="'+esc(t.id)+'" aria-label="Đánh dấu hoàn thành: '+esc(t.title)+'" '+((t.is_completed||(t.is_daily&&t.daily_completed_on===today()))?'checked':'')+'>';
-      const counter = repeat ? '<div class="repeat-value">'+remain+' / '+Number(t.repeat_total||1)+' lần còn lại</div>' : '';
-      const dailyDone = t.is_daily && t.daily_completed_on === today();
-      return '<li class="task'+(repeat?' repeat-task':'')+((t.is_completed||dailyDone)?' done':'')+'" data-row="'+esc(t.id)+'">'+
-        control+
-        '<div><div class="task-title">'+esc(t.title)+'</div>'+counter+'</div></li>';
-    }).join('');
-    $('#empty').classList.toggle('hidden',visible.length!==0);
-    $('#taskList').classList.toggle('hidden',visible.length===0);
-    $('#summary').textContent = visible.length ? visible.length+' việc còn lại' : 'Không còn việc nào đang chờ.';
+(function () {
+  /* ES5-only Kindle version: avoid modern syntax unsupported by older Kindle browsers. */
+  var $ = function (s) { return document.querySelector(s); };
+  var config = window.TASKFLOW_CONFIG || {};
+  var clientUrl = String(config.supabaseUrl || "").replace(/\/$/, "");
+  var apiKey = String(config.supabaseAnonKey || "");
+  var user = null, tasks = [], accessToken = "", refreshToken = "", expiresAt = 0, busy = {};
+  var pollTimer = null;
+  var columns = "id,user_id,title,scheduled_date,due_date,is_completed,completed_at,is_daily,daily_completed_on,repeat_enabled,repeat_total,repeat_remaining,position,archived_at,created_at";
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + "-" + ("0" + (d.getMonth()+1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
   }
-  async function load(silent=false){
-    if(!user) return;
-    status('Đang đồng bộ…');
-    const {data,error} = await client.from('tasks').select('id,user_id,title,scheduled_date,due_date,is_completed,completed_at,is_daily,daily_completed_on,repeat_enabled,repeat_total,repeat_remaining,position,archived_at,created_at').eq('user_id',user.id).is('archived_at',null).order('position',{ascending:true}).order('created_at',{ascending:true});
-    if(error){
-      if(!silent) status('Chưa tải được việc. Kiểm tra kết nối rồi chạm ↻ để thử lại.');
-      console.error(error); return;
+  function esc(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function status(msg) { $("#status").textContent = msg; }
+  function authStatus(msg) { $("#authStatus").textContent = msg; }
+  function setDate() {
+    try {
+      $("#todayDate").textContent = new Intl.DateTimeFormat("vi-VN", {weekday:"long",day:"numeric",month:"long"}).format(new Date());
+    } catch (e) {
+      var d = new Date();
+      $("#todayDate").textContent = d.getDate() + "/" + (d.getMonth()+1) + "/" + d.getFullYear();
     }
-    tasks = (data||[]).map(t=>({...t,repeat_enabled:Boolean(t.repeat_enabled),repeat_total:Number(t.repeat_total||1),repeat_remaining:Number(t.repeat_remaining??t.repeat_total??1)}));
-    render(); status('Đã đồng bộ với TaskFlow');
   }
-  async function signIn(){
-    if(!config.supabaseUrl || !config.supabaseAnonKey || !window.supabase?.createClient){
-      authStatus('Chưa cấu hình được Supabase. Kiểm tra web/config.js.'); return;
+  function showApp() { $("#authScreen").classList.add("hidden"); $("#app").classList.remove("hidden"); setDate(); }
+  function showAuth() { $("#app").classList.add("hidden"); $("#authScreen").classList.remove("hidden"); }
+  function request(method, path, body, token, callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.open(method, clientUrl + path, true);
+    xhr.setRequestHeader("apikey", apiKey);
+    xhr.setRequestHeader("Accept", "application/json");
+    if (body !== null && typeof body !== "undefined") xhr.setRequestHeader("Content-Type", "application/json");
+    if (token) xhr.setRequestHeader("Authorization", "Bearer " + token);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      var data = null;
+      try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (e) {}
+      if (xhr.status >= 200 && xhr.status < 300) callback(null, data, xhr);
+      else {
+        var message = data && (data.msg || data.message || data.error_description || data.error);
+        callback(new Error(message || ("Lỗi kết nối (" + xhr.status + ")")), data, xhr);
+      }
+    };
+    xhr.onerror = function () { callback(new Error("Không kết nối được. Kiểm tra Wi-Fi trên Kindle.")); };
+    try { xhr.send(body !== null && typeof body !== "undefined" ? JSON.stringify(body) : null); }
+    catch (e) { callback(e); }
+  }
+  function saveSession(data) {
+    accessToken = data.access_token || "";
+    refreshToken = data.refresh_token || "";
+    expiresAt = Math.floor(new Date().getTime()/1000) + Number(data.expires_in || 3600) - 30;
+    try {
+      localStorage.setItem("tf_kindle_session", JSON.stringify({
+        access_token: accessToken, refresh_token: refreshToken, expires_at: expiresAt,
+        user: data.user || user
+      }));
+    } catch (e) { /* Some Kindle browser modes do not persist local storage. */ }
+    if (data.user) user = data.user;
+  }
+  function restoreSession() {
+    try {
+      var raw = localStorage.getItem("tf_kindle_session");
+      if (raw) {
+        var saved = JSON.parse(raw);
+        accessToken = saved.access_token || "";
+        refreshToken = saved.refresh_token || "";
+        expiresAt = Number(saved.expires_at || 0);
+        user = saved.user || null;
+      }
+    } catch (e) {}
+  }
+  function withFreshToken(callback) {
+    if (accessToken && expiresAt > Math.floor(new Date().getTime()/1000)) {
+      callback(null); return;
     }
-    client = window.supabase.createClient(config.supabaseUrl,config.supabaseAnonKey,{auth:{storage:window.localStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-    const {data,error}=await client.auth.getSession();
-    if(error) console.warn(error.message);
-    if(data?.session?.user){ await enter(data.session.user); }
+    if (!refreshToken) { callback(new Error("Phiên đăng nhập hết hạn. Hãy đăng nhập lại.")); return; }
+    request("POST", "/auth/v1/token?grant_type=refresh_token", {refresh_token:refreshToken}, null, function (err, data) {
+      if (err) { callback(err); return; }
+      saveSession(data); callback(null);
+    });
   }
-  async function enter(nextUser){
-    user=nextUser; showApp(); await load();
-    if(channel) await client.removeChannel(channel);
-    channel=client.channel('taskflow-kindle-'+user.id)
-      .on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:'user_id=eq.'+user.id},()=>load(true))
-      .subscribe();
+  function api(method, path, body, callback, retry) {
+    withFreshToken(function (tokenError) {
+      if (tokenError) { callback(tokenError); return; }
+      request(method, path, body, accessToken, function (err, data, xhr) {
+        if (err && xhr && xhr.status === 401 && !retry && refreshToken) {
+          expiresAt = 0;
+          api(method, path, body, callback, true);
+        } else callback(err, data, xhr);
+      });
+    });
   }
-  async function updateTask(id,patch,row){
-    if(busy.has(id)) return;
-    busy.add(id);
-    if(row) row.querySelectorAll('button,input').forEach(el=>el.disabled=true);
-    const {error}=await client.from('tasks').update(patch).eq('id',id).eq('user_id',user.id);
-    busy.delete(id);
-    if(error){ status('Chưa lưu được thay đổi. Chạm ↻ để đồng bộ lại.'); console.error(error); await load(true); return; }
-    await load(true);
+  function activeTasks() {
+    return tasks.filter(function (t) {
+      return !t.archived_at && (t.repeat_enabled || !(t.is_daily ? t.daily_completed_on === today() : t.is_completed));
+    });
   }
-  $('#authForm').addEventListener('submit',async e=>{
-    e.preventDefault(); $('#loginButton').disabled=true; $('#loginButton').textContent='Đang mở…';
-    try{
-      if(!config.supabaseUrl || !config.supabaseAnonKey || !window.supabase?.createClient) throw new Error('Chưa cấu hình Supabase trong web/config.js.');
-      if(!client) client=window.supabase.createClient(config.supabaseUrl,config.supabaseAnonKey,{auth:{storage:window.localStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-      const {data,error}=await client.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});
-      if(error) throw error;
-      await enter(data.user); authStatus('');
-    }catch(err){ authStatus(err.message||'Không đăng nhập được.'); }
-    finally{$('#loginButton').disabled=false;$('#loginButton').textContent='Mở tờ giấy';}
+  function render() {
+    var visible = activeTasks();
+    visible.sort(function (a, b) {
+      return Number(a.position || 0) - Number(b.position || 0) ||
+        String(a.created_at || "").localeCompare(String(b.created_at || ""));
+    });
+    $("#taskList").innerHTML = visible.map(function (t) {
+      var repeat = Boolean(t.repeat_enabled);
+      var remain = Number(t.repeat_remaining == null ? (t.repeat_total || 1) : t.repeat_remaining);
+      var control, counter = "";
+      if (repeat) {
+        control = '<div class="repeat-controls"><button class="repeat-button" type="button" data-repeat="1" data-id="' + esc(t.id) + '" aria-label="Ghi nhận một lần" ' + (remain <= 0 ? "disabled" : "") + '>+</button><button class="repeat-button" type="button" data-repeat="-1" data-id="' + esc(t.id) + '" aria-label="Hoàn tác một lần">−</button></div>';
+        counter = '<div class="repeat-value">' + remain + " / " + Number(t.repeat_total || 1) + " lần còn lại</div>";
+      } else {
+        control = '<input class="task-check" type="checkbox" data-check="' + esc(t.id) + '" aria-label="Đánh dấu hoàn thành: ' + esc(t.title) + '" ' + ((t.is_completed || (t.is_daily && t.daily_completed_on === today())) ? "checked" : "") + '>';
+      }
+      var dailyDone = t.is_daily && t.daily_completed_on === today();
+      return '<li class="task' + (repeat ? " repeat-task" : "") + ((t.is_completed || dailyDone) ? " done" : "") + '" data-row="' + esc(t.id) + '">' +
+        control + '<div><div class="task-title">' + esc(t.title) + '</div>' + counter + '</div></li>';
+    }).join("");
+    $("#empty").classList.toggle("hidden", visible.length !== 0);
+    $("#taskList").classList.toggle("hidden", visible.length === 0);
+    $("#summary").textContent = visible.length ? visible.length + " việc còn lại" : "Không còn việc nào đang chờ.";
+  }
+  function load(silent) {
+    if (!user) return;
+    if (!silent) status("Đang đồng bộ…");
+    api("GET", "/rest/v1/tasks?select=" + encodeURIComponent(columns) + "&user_id=eq." + encodeURIComponent(user.id) + "&archived_at=is.null&order=position.asc,created_at.asc", null, function (err, data) {
+      if (err) {
+        if (!silent) status("Chưa tải được việc: " + err.message + ". Kiểm tra Wi-Fi rồi chạm ↻.");
+        return;
+      }
+      tasks = (data || []).map(function (t) {
+        t.repeat_enabled = Boolean(t.repeat_enabled);
+        t.repeat_total = Number(t.repeat_total || 1);
+        t.repeat_remaining = Number(t.repeat_remaining == null ? t.repeat_total : t.repeat_remaining);
+        return t;
+      });
+      render(); status("Đã đồng bộ với TaskFlow");
+    });
+  }
+  function enter(nextUser) {
+    user = nextUser;
+    showApp();
+    load(false);
+    if (pollTimer) window.clearInterval(pollTimer);
+    /* Older Kindle browsers may not support Realtime/WebSocket reliably; poll gently. */
+    pollTimer = window.setInterval(function () { if (!document.hidden) load(true); }, 30000);
+  }
+  function signIn() {
+    if (!clientUrl || !apiKey) { authStatus("Thiếu cấu hình Supabase trong web/config.js."); return; }
+    restoreSession();
+    if (!accessToken) return;
+    withFreshToken(function (err) {
+      if (err) { try { localStorage.removeItem("tf_kindle_session"); } catch (e) {} accessToken = ""; refreshToken = ""; user = null; return; }
+      request("GET", "/auth/v1/user", null, accessToken, function (userErr, data) {
+        if (!userErr && data && data.id) { user = data; enter(user); }
+      });
+    });
+  }
+  $("#authForm").addEventListener("submit", function (e) {
+    if (e && e.preventDefault) e.preventDefault();
+    var button = $("#loginButton");
+    button.disabled = true; button.textContent = "Đang mở…"; authStatus("");
+    if (!clientUrl || !apiKey) {
+      authStatus("Thiếu cấu hình Supabase trong web/config.js.");
+      button.disabled = false; button.textContent = "Mở tờ giấy"; return;
+    }
+    request("POST", "/auth/v1/token?grant_type=password", {
+      email: $("#email").value.replace(/^\s+|\s+$/g, ""),
+      password: $("#password").value
+    }, null, function (err, data) {
+      button.disabled = false; button.textContent = "Mở tờ giấy";
+      if (err) { authStatus("Không đăng nhập được: " + err.message); return; }
+      if (!data || !data.access_token || !data.user) { authStatus("Supabase chưa trả về phiên đăng nhập."); return; }
+      saveSession(data); enter(data.user);
+    });
   });
-  $('#taskList').addEventListener('change',async e=>{
-    const input=e.target.closest('[data-check]'); if(!input||!user)return;
-    const task=tasks.find(t=>t.id===input.dataset.check); if(!task)return;
-    const checked=input.checked;
-    const patch=task.is_daily
-      ? {daily_completed_on:checked?today():null,is_completed:checked,completed_at:checked?new Date().toISOString():null}
-      : {is_completed:checked,completed_at:checked?new Date().toISOString():null};
-    await updateTask(task.id,patch,input.closest('[data-row]'));
+  function updateTask(id, patch, row) {
+    if (busy[id]) return;
+    busy[id] = true;
+    if (row) {
+      var controls = row.querySelectorAll("button,input");
+      for (var i = 0; i < controls.length; i++) controls[i].disabled = true;
+    }
+    api("PATCH", "/rest/v1/tasks?id=eq." + encodeURIComponent(id) + "&user_id=eq." + encodeURIComponent(user.id), patch, function (err) {
+      busy[id] = false;
+      if (err) { status("Chưa lưu được thay đổi: " + err.message + ". Chạm ↻ để thử lại."); load(true); return; }
+      load(true);
+    });
+  }
+  $("#taskList").addEventListener("change", function (e) {
+    var input = e.target;
+    if (!input || !input.getAttribute || !input.getAttribute("data-check") || !user) return;
+    var id = input.getAttribute("data-check"), task = null;
+    for (var i = 0; i < tasks.length; i++) if (String(tasks[i].id) === String(id)) task = tasks[i];
+    if (!task) return;
+    var checked = input.checked, patch;
+    if (task.is_daily) patch = {daily_completed_on:checked ? today() : null, is_completed:checked, completed_at:checked ? new Date().toISOString() : null};
+    else patch = {is_completed:checked, completed_at:checked ? new Date().toISOString() : null};
+    updateTask(task.id, patch, input.parentNode.parentNode);
   });
-  $('#taskList').addEventListener('click',async e=>{
-    const button=e.target.closest('[data-repeat]'); if(!button||!user)return;
-    const task=tasks.find(t=>t.id===button.dataset.id); if(!task||!task.repeat_enabled)return;
-    const delta=Number(button.dataset.repeat);
-    const remaining=Number(task.repeat_remaining??task.repeat_total??1);
-    const next=Math.max(0,remaining-delta);
-    if(next===remaining)return;
-    const finished=next===0;
-    await updateTask(task.id,{repeat_remaining:next,is_completed:finished,completed_at:finished?(task.completed_at||new Date().toISOString()):null},button.closest('[data-row]'));
+  $("#taskList").addEventListener("click", function (e) {
+    var node = e.target, button = null;
+    while (node && node !== this) {
+      if (node.getAttribute && node.getAttribute("data-repeat")) { button = node; break; }
+      node = node.parentNode;
+    }
+    if (!button || !user) return;
+    var id = button.getAttribute("data-id"), task = null;
+    for (var i = 0; i < tasks.length; i++) if (String(tasks[i].id) === String(id)) task = tasks[i];
+    if (!task || !task.repeat_enabled) return;
+    var delta = Number(button.getAttribute("data-repeat"));
+    var remaining = Number(task.repeat_remaining == null ? task.repeat_total : task.repeat_remaining);
+    var next = Math.max(0, remaining - delta);
+    if (next === remaining) return;
+    var finished = next === 0;
+    updateTask(task.id, {repeat_remaining:next,is_completed:finished,completed_at:finished ? (task.completed_at || new Date().toISOString()) : null}, button.parentNode.parentNode.parentNode);
   });
-  $('#refresh').addEventListener('click',()=>load());
-  $('#logout').addEventListener('click',async()=>{
-    if(channel) await client.removeChannel(channel); channel=null;
-    await client.auth.signOut(); user=null; tasks=[]; showAuth(); authStatus('Đã đăng xuất.');
+  $("#refresh").addEventListener("click", function () { load(false); });
+  $("#logout").addEventListener("click", function () {
+    if (pollTimer) window.clearInterval(pollTimer);
+    try { localStorage.removeItem("tf_kindle_session"); } catch (e) {}
+    accessToken = ""; refreshToken = ""; user = null; tasks = [];
+    showAuth(); authStatus("Đã đăng xuất.");
   });
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&user)load(true);});
-  window.addEventListener('online',()=>{if(user)load(true);});
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && user) load(true); });
+  window.addEventListener("online", function () { if (user) load(true); });
   signIn();
 })();
 </script>
