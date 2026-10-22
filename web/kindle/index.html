@@ -93,8 +93,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-of
   function setDate() {
     /* Force Vietnam time (UTC+7), regardless of the Kindle's configured timezone. */
     var d = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
-    var weekdays = ["chủ nhật", "thứ hai", "thứ ba", "thứ tư", "thứ năm", "thứ sáu", "thứ bảy"];
-    $("#todayDate").textContent = weekdays[d.getUTCDay()] + ", " + d.getUTCDate() + " tháng " + (d.getUTCMonth() + 1);
+    var weekdays = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+    $("#todayDate").textContent = weekdays[d.getUTCDay()] + ", ngày " + d.getUTCDate() + "/" + (d.getUTCMonth() + 1);
   }
   function showApp() { $("#authScreen").classList.add("hidden"); $("#app").classList.remove("hidden"); setDate(); }
   function showAuth() { $("#app").classList.add("hidden"); $("#authScreen").classList.remove("hidden"); }
