@@ -91,12 +91,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-of
   function status(msg) { $("#status").textContent = msg; }
   function authStatus(msg) { $("#authStatus").textContent = msg; }
   function setDate() {
-    try {
-      $("#todayDate").textContent = new Intl.DateTimeFormat("vi-VN", {weekday:"long",day:"numeric",month:"long"}).format(new Date());
-    } catch (e) {
-      var d = new Date();
-      $("#todayDate").textContent = d.getDate() + "/" + (d.getMonth()+1) + "/" + d.getFullYear();
-    }
+    /* Force Vietnam time (UTC+7), regardless of the Kindle's configured timezone. */
+    var d = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+    var weekdays = ["chủ nhật", "thứ hai", "thứ ba", "thứ tư", "thứ năm", "thứ sáu", "thứ bảy"];
+    $("#todayDate").textContent = weekdays[d.getUTCDay()] + ", " + d.getUTCDate() + " tháng " + (d.getUTCMonth() + 1);
   }
   function showApp() { $("#authScreen").classList.add("hidden"); $("#app").classList.remove("hidden"); setDate(); }
   function showAuth() { $("#app").classList.add("hidden"); $("#authScreen").classList.remove("hidden"); }
